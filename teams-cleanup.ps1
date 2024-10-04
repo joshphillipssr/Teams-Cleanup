@@ -1,4 +1,4 @@
-function Teams-Posh {
+function Teams-Cleanup {
     Log "Starting Microsoft Teams installation/uninstallation process."
 
     # Check for elevated privileges
