@@ -246,4 +246,4 @@ function Log {
 }
 
 # Run the script to uninstall previous versions and install the latest Teams
-Teams-Posh
+Teams-Cleanup
