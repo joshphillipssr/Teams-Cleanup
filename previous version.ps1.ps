@@ -1,0 +1,187 @@
+function Teams-Posh {
+    Log "Starting Microsoft Teams installation/uninstallation process."
+ 
+    # Check running with elevated privileges
+    Log "Checking if the script has elevated privileges..."
+    if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
+        Log "ERROR: This script requires elevation. Please run as administrator."
+        exit 1
+    } else {
+        Log "Script is running with elevated privileges."
+    }
+ 
+    # Define default paths for the bootstrapper
+    Log "Attempting to download the Microsoft Teams bootstrapper..."
+    $BootstrapperPath = DownloadFile "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409" "bootstrapper.exe"
+    if ($BootstrapperPath -eq $null) {
+        Log "ERROR: Failed to download the bootstrapper."
+        exit 1
+    }
+    Log "Bootstrapper downloaded successfully: $BootstrapperPath."
+ 
+    # Always attempt to uninstall any existing Machine-Wide version of Teams, regardless of Appx version
+    Log "Attempting to uninstall any previous Machine-Wide versions of Microsoft Teams..."
+    RemoveTeamsClassicWide
+ 
+    # Now check if the latest Appx version of Teams is installed
+    Log "Checking if the latest version of Microsoft Teams is already installed."
+    if (-not (IsLatestTeamsInstalled)) {
+        Log "No latest version of Teams detected. Proceeding with installation."
+        $install = InstallTeams -BootstrapperPath $BootstrapperPath
+        if ($install -eq $true) {
+            Log "Microsoft Teams successfully installed."
+            exit 0
+        } else {
+            Log "ERROR: Microsoft Teams installation failed."
+            exit 1
+        }
+    } else {
+        Log "Latest version of Microsoft Teams is already installed. Skipping installation."
+        exit 0
+    }
+}
+ 
+function InstallTeams {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$BootstrapperPath
+    )
+    try {
+        Log "Downloading and installing the latest version of Microsoft Teams."
+        # Execute the bootstrapper and capture its output
+        $bootstrapperOutput = & $BootstrapperPath -p 2>&1
+ 
+        # Check if the output contains any error information
+        if ($bootstrapperOutput) {
+            Log "Bootstrapper output: $bootstrapperOutput"
+        }
+ 
+        # Check for installation success
+        $resultObj = try { $bootstrapperOutput | ConvertFrom-Json } catch { $null }
+ 
+        if ($resultObj -eq $null -or $resultObj.success -eq $false) {
+            if ($resultObj.errorCode -eq "0x80073CF9") {
+                Log "ERROR: Teams installation failed with error code 0x80073CF9. This is often related to disk space or Appx subsystem issues. Please ensure there is enough disk space and try running DISM and SFC to repair any issues with the Appx subsystem."
+            }
+            throw "Failed to install Teams with bootstrapper. Error Code: $($resultObj.errorCode)"
+        }
+ 
+        Log "Teams installation completed successfully."
+        return $true
+    } catch {
+        Log "ERROR: Teams installation failed. Exception: $_"
+        return $false
+    }
+}
+ 
+function IsLatestTeamsInstalled {
+    try {
+        Log "Checking if the script is running as SYSTEM..."
+        $isSystem = ([Security.Principal.WindowsIdentity]::GetCurrent().Name -eq "NT AUTHORITY\SYSTEM")
+        if ($isSystem) {
+            Log "Running as SYSTEM. Skipping per-user Teams check."
+            return $false  # Always assume a check is needed when running as SYSTEM
+        }
+ 
+        # Get list of user profiles (as SYSTEM, query per-user Appx package using WMI)
+        Log "Retrieving user profiles for Teams version check..."
+        $userProfiles = Get-WmiObject Win32_UserProfile | Where-Object { $_.Special -eq $false }
+ 
+        if (-not $userProfiles) {
+            Log "ERROR: No valid user profiles found."
+            throw "No valid user profiles found."
+        }
+ 
+        foreach ($profile in $userProfiles) {
+            $userSid = $profile.SID
+            Log "Checking Teams installation for user SID: $userSid..."
+            $appx = Get-AppxPackage -User $userSid | Where-Object { $_.Name -eq "MSTeams" }
+            if ($appx) {
+                Log "Teams version $($appx.Version) is installed for user SID $userSid."
+                return $true
+            }
+        }
+ 
+        Log "No Teams package found for any user."
+        return $false
+    } catch {
+        Log "ERROR: Could not check Microsoft Teams version. Exception: $_"
+        return $false
+    }
+}
+ 
+function RemoveTeamsClassicWide {
+    try {
+        # Uninstall machine-wide versions of Teams
+        Log "Attempting to uninstall the Machine-Wide version of Teams."
+ 
+        # These are the GUIDs for x86 and x64 Teams Machine-Wide Installer
+        $msiPkg32Guid = "{39AF0813-FA7B-4860-ADBE-93B9B214B914}"
+        $msiPkg64Guid = "{731F6BAA-A986-45A4-8936-7C3AAAAA760B}"
+ 
+        # Check if the Teams Machine-Wide Installer is installed (both 32-bit and 64-bit)
+        Log "Checking for Teams Machine-Wide Installer in the registry..."
+        $uninstallReg64 = Get-Item -Path "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object { $_.DisplayName -match 'Teams Machine-Wide Installer' }
+        $uninstallReg32 = Get-Item -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*" -ErrorAction SilentlyContinue | Get-ItemProperty | Where-Object { $_.DisplayName -match 'Teams Machine-Wide Installer' }
+ 
+        if ($uninstallReg64) {
+            $msiExecUninstallArgs = "/X $msiPkg64Guid /quiet"
+            Log "Teams Classic Machine-Wide Installer x64 found. Proceeding with uninstall."
+        } elseif ($uninstallReg32) {
+            $msiExecUninstallArgs = "/X $msiPkg32Guid /quiet"
+            Log "Teams Machine-Wide Installer x86 found. Proceeding with uninstall."
+        } else {
+            Log "No Machine-Wide Teams version found. Skipping uninstallation."
+            return
+        }
+ 
+        # Run the uninstallation if a valid GUID is found
+        $p = Start-Process "msiexec.exe" -ArgumentList $msiExecUninstallArgs -Wait -PassThru -WindowStyle Hidden
+        if ($p.ExitCode -eq 0) {
+            Log "Teams Classic Machine-Wide uninstalled successfully."
+        } elseif ($p.ExitCode -eq 1605) {
+            Log "NOTICE: Teams Classic Machine-Wide uninstall failed because the product is not installed (exit code 1605)."
+        } else {
+            Log "ERROR: Teams Classic Machine-Wide uninstall failed with exit code $($p.ExitCode)."
+        }
+    } catch {
+        Log "ERROR: Failed to uninstall Teams Machine-Wide. Exception: $_"
+    }
+}
+ 
+function DownloadFile {
+    param(
+        [Parameter(Mandatory=$true)]
+        [string]$url,
+        [Parameter(Mandatory=$true)]
+        [string]$fileName,
+        [string]$path = [System.Environment]::GetEnvironmentVariable('TEMP','Machine')
+    )
+    $webClient = New-Object -TypeName System.Net.WebClient
+    $file = $null
+    if (-not(Test-Path -Path $path)) {
+        New-Item -Path $path -ItemType Directory -Force | Out-Null
+    }
+    try {
+        Log "Starting download of $fileName from $url."
+        $outputPath = Join-Path -Path $path -ChildPath $fileName
+        $webClient.DownloadFile($url, $outputPath)
+        Log "Download of $fileName completed: $outputPath."
+        $file = $outputPath
+    } catch {
+        Log "ERROR: Failed to download $fileName from $url. Exception: $_"
+    }
+    $webClient.Dispose()
+    return $file
+}
+ 
+function Log {
+    param (
+        [string]$Text
+    )
+    $timestamp = "{0:yyyy-MM-dd HH:mm:ss}" -f [DateTime]::Now
+    Write-Information -MessageData "$timestamp `- $($Text)" -InformationAction Continue
+}
+ 
+# Run the script to uninstall previous versions and install the latest Teams
+Teams-Posh

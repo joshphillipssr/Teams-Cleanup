@@ -47,35 +47,42 @@ function Teams-Cleanup {
 }
 
 function InstallTeams {
-    param(
+    param (
         [Parameter(Mandatory=$true)]
         [string]$BootstrapperPath
     )
     try {
-        Log "Downloading and installing the latest version of Microsoft Teams."
-        
-        # Execute the bootstrapper and capture its output
-        $bootstrapperOutput = & $BootstrapperPath -p 2>&1
+        Log "Installing the latest version of Microsoft Teams (Teams 2.0) from Microsoft Store."
 
-        # Check if the output contains any error information
-        if ($bootstrapperOutput) {
-            Log "Bootstrapper output: $bootstrapperOutput"
+        # Define the Teams Appx package family name for Microsoft Teams 2.0
+        $teamsAppxPackageName = "MicrosoftTeams_8wekyb3d8bbwe"
+
+        # Check if Teams 2.0 is already installed
+        $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
+        if ($teamsAppxPackage) {
+            Log "Microsoft Teams 2.0 is already installed. Version: $($teamsAppxPackage.Version)"
+            return $true
         }
 
-        # Check for installation success
-        $resultObj = try { $bootstrapperOutput | ConvertFrom-Json } catch { $null }
+        # If not installed, attempt to install from the Microsoft Store
+        Log "Microsoft Teams 2.0 is not installed. Installing from the Microsoft Store..."
 
-        if ($null -eq $resultObj -or $resultObj.success -eq $false) {
-            if ($resultObj.errorCode -eq "0x80073CF9") {
-                Log "ERROR: Teams installation failed with error code 0x80073CF9. This is often related to disk space or Appx subsystem issues. Please ensure there is enough disk space and try running DISM and SFC to repair any issues with the Appx subsystem."
-            }
-            throw "Failed to install Teams with bootstrapper. Error Code: $($resultObj.errorCode)"
+        # Install Teams 2.0 using Add-AppxPackage (silent)
+        $teamsUri = "https://www.microsoft.com/store/productId/9WZDNCRFJB13"
+        Start-Process -FilePath "ms-windows-store://pdp?productid=9WZDNCRFJB13" -Wait
+        Log "Microsoft Teams 2.0 installation initiated from the Microsoft Store."
+
+        # Verify installation after initiating
+        $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
+        if ($teamsAppxPackage) {
+            Log "Microsoft Teams 2.0 installed successfully. Version: $($teamsAppxPackage.Version)"
+            return $true
+        } else {
+            Log "ERROR: Failed to install Microsoft Teams 2.0."
+            return $false
         }
-
-        Log "Teams installation completed successfully."
-        return $true
     } catch {
-        Log "ERROR: Teams installation failed. Exception: $_"
+        Log "ERROR: Failed to install Microsoft Teams. Exception: $_"
         return $false
     }
 }
