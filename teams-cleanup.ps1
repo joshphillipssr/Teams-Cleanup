@@ -52,7 +52,7 @@ function InstallTeams {
         [string]$BootstrapperPath
     )
     try {
-        Log "Installing the latest version of Microsoft Teams (Teams 2.0) from Microsoft Store."
+        Log "Installing the latest version of Microsoft Teams (Teams 2.0) from the MSIX package."
 
         # Define the Teams Appx package family name for Microsoft Teams 2.0
         $teamsAppxPackageName = "MicrosoftTeams_8wekyb3d8bbwe"
@@ -64,13 +64,24 @@ function InstallTeams {
             return $true
         }
 
-        # If not installed, attempt to install from the Microsoft Store
-        Log "Microsoft Teams 2.0 is not installed. Installing from the Microsoft Store..."
+        # If not installed, attempt to download and install the MSIX package
+        Log "Microsoft Teams 2.0 is not installed. Downloading and installing from the MSIX package..."
 
-        # Install Teams 2.0 using Add-AppxPackage (silent)
-        $teamsUri = "https://www.microsoft.com/store/productId/9WZDNCRFJB13"
-        Start-Process -FilePath "ms-windows-store://pdp?productid=9WZDNCRFJB13" -Wait
-        Log "Microsoft Teams 2.0 installation initiated from the Microsoft Store."
+        # Define the download URL and local path for the MSIX package
+        $msixPackageUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
+        $msixPackagePath = Join-Path $env:TEMP "MSTeams-x64.msix"
+
+        # Download the MSIX package
+        Log "Downloading MSIX package from $msixPackageUrl..."
+        $webClient = New-Object System.Net.WebClient
+        $webClient.DownloadFile($msixPackageUrl, $msixPackagePath)
+        $webClient.Dispose()
+        Log "Download completed: $msixPackagePath."
+
+        # Install Teams 2.0 using Add-AppProvisionedPackage
+        Log "Installing Microsoft Teams 2.0 from the MSIX package..."
+        Add-AppProvisionedPackage -Online -PackagePath $msixPackagePath -SkipLicense
+        Log "Microsoft Teams 2.0 installation initiated from the MSIX package."
 
         # Verify installation after initiating
         $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
