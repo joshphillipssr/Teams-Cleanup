@@ -54,8 +54,8 @@ function InstallTeams {
     try {
         Log "Installing the latest version of Microsoft Teams (Teams 2.0) from the MSIX package."
 
-        # Define the Teams Appx package family name for Microsoft Teams 2.0
-        $teamsAppxPackageName = "MicrosoftTeams_8wekyb3d8bbwe"
+        # Define the correct Teams Appx package name for Microsoft Teams 2.0
+        $teamsAppxPackageName = "MSTeams"
 
         # Check if Teams 2.0 is already installed
         $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
@@ -83,15 +83,36 @@ function InstallTeams {
         Add-AppProvisionedPackage -Online -PackagePath $msixPackagePath -SkipLicense
         Log "Microsoft Teams 2.0 installation initiated from the MSIX package."
 
-        # Verify installation after initiating
-        $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
-        if ($teamsAppxPackage) {
-            Log "Microsoft Teams 2.0 installed successfully. Version: $($teamsAppxPackage.Version)"
-            return $true
-        } else {
-            Log "ERROR: Failed to install Microsoft Teams 2.0."
+        # Wait for a few seconds to allow the system to register the installation
+        Start-Sleep -Seconds 15
+
+        # Retry verification of installation
+        $retryCount = 0
+        $maxRetries = 3
+        $isInstalled = $false
+
+        while ($retryCount -lt $maxRetries -and -not $isInstalled) {
+            Log "Checking if Microsoft Teams 2.0 is installed (attempt $($retryCount + 1) of $maxRetries)..."
+            $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
+
+            if ($teamsAppxPackage) {
+                Log "Microsoft Teams 2.0 installed successfully. Version: $($teamsAppxPackage.Version)"
+                $isInstalled = $true
+                return $true
+            } else {
+                Log "Microsoft Teams 2.0 not detected. Retrying after a delay..."
+                Start-Sleep -Seconds 10
+            }
+
+            $retryCount++
+        }
+
+        # If the installation check still fails after retries
+        if (-not $isInstalled) {
+            Log "ERROR: Failed to verify the installation of Microsoft Teams 2.0."
             return $false
         }
+
     } catch {
         Log "ERROR: Failed to install Microsoft Teams. Exception: $_"
         return $false
