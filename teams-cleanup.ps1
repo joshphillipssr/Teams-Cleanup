@@ -15,15 +15,6 @@ function Teams-Cleanup {
         exit 1
     }
 
-    # Define default paths for the bootstrapper
-    Log "Attempting to download the Microsoft Teams bootstrapper..."
-    $BootstrapperPath = DownloadFile "https://go.microsoft.com/fwlink/?linkid=2243204&clcid=0x409" "bootstrapper.exe"
-    if ($null -eq $BootstrapperPath) {
-        Log "ERROR: Failed to download the bootstrapper."
-        exit 1
-    }
-    Log "Bootstrapper downloaded successfully: $BootstrapperPath."
-
     # Always attempt to uninstall any existing Machine-Wide version of Teams, regardless of Appx version
     Log "Attempting to uninstall any previous Machine-Wide versions of Microsoft Teams..."
     RemoveTeamsClassicWide
@@ -47,10 +38,6 @@ function Teams-Cleanup {
 }
 
 function InstallTeams {
-    param (
-        [Parameter(Mandatory=$true)]
-        [string]$BootstrapperPath
-    )
     try {
         Log "Installing the latest version of Microsoft Teams (Teams 2.0) from the MSIX package."
 
@@ -208,32 +195,6 @@ function RemoveTeamsClassicWide {
     } catch {
         Log "ERROR: Failed to uninstall Teams Machine-Wide. Exception: $_"
     }
-}
-
-function DownloadFile {
-    param(
-        [Parameter(Mandatory=$true)]
-        [string]$url,
-        [Parameter(Mandatory=$true)]
-        [string]$fileName,
-        [string]$path = [System.Environment]::GetEnvironmentVariable('TEMP','Machine')
-    )
-    $webClient = New-Object -TypeName System.Net.WebClient
-    $file = $null
-    if (-not(Test-Path -Path $path)) {
-        New-Item -Path $path -ItemType Directory -Force | Out-Null
-    }
-    try {
-        Log "Starting download of $fileName from $url."
-        $outputPath = Join-Path -Path $path -ChildPath $fileName
-        $webClient.DownloadFile($url, $outputPath)
-        Log "Download of $fileName completed: $outputPath."
-        $file = $outputPath
-    } catch {
-        Log "ERROR: Failed to download $fileName from $url. Exception: $_"
-    }
-    $webClient.Dispose()
-    return $file
 }
 
 # Function to check and install Microsoft Edge WebView2 if it's not already installed
