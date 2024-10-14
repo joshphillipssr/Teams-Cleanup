@@ -5,14 +5,14 @@ function Teams-Cleanup {
     Log "Checking if the script has elevated privileges..."
     if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Log "ERROR: This script requires elevation. Please run as administrator."
-        exit 1
+        Exit-Script 1
     }
     Log "Script is running with elevated privileges."
 
     # Check and install Microsoft Edge WebView2 if required
     if (-not (InstallWebView2)) {
         Log "ERROR: Microsoft Edge WebView2 installation failed. Cannot proceed with Teams installation."
-        exit 1
+        Exit-Script 1
     }
 
     # Always attempt to uninstall any existing Machine-Wide version of Teams, regardless of Appx version
@@ -26,14 +26,26 @@ function Teams-Cleanup {
         $install = InstallTeams -BootstrapperPath $BootstrapperPath
         if ($install -eq $true) {
             Log "Microsoft Teams successfully installed."
-            exit 0
+            Exit-Script 0
         } else {
             Log "ERROR: Microsoft Teams installation failed."
-            exit 1
+            Exit-Script 1
         }
     } else {
         Log "Latest version of Microsoft Teams is already installed. Skipping installation."
-        exit 0
+        Exit-Script 0
+    }
+}
+
+function Exit-Script {
+    param (
+        [int]$ExitCode
+    )
+    if (-not $global:PreventExit) {
+        exit $ExitCode
+    } else {
+        Write-Host "Exit code: $ExitCode"
+        return $ExitCode
     }
 }
 
