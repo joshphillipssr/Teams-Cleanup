@@ -127,20 +127,23 @@ function IsLatestTeamsInstalled {
         if ($loggedInUser -and $loggedInUser -ne "") {
             # Extract the username (without the domain)
             $userOnly = $loggedInUser -replace '.*\\', ''
-            Log "Logged-in user detected: ${userOnly}. Checking Teams installation for this user."
+            Log "Logged-in user detected: ${userOnly}. Fetching the SID for this user."
 
-            # Get the user's SID using WindowsIdentity instead of WMI
-            $userSID = ([System.Security.Principal.WindowsIdentity]::GetCurrent()).User.Value
+            # Retrieve SID of the logged-in user using WMI
+            $userSID = (Get-WmiObject Win32_UserAccount | Where-Object { $_.Name -eq $userOnly }).SID
 
-            if (-not $userSID) {
+            # Add additional logging after SID retrieval
+            if ($userSID) {
+                Log "Successfully retrieved SID for user ${userOnly}: ${userSID}"
+            } else {
                 Log "ERROR: Could not retrieve the SID for the user: ${userOnly}."
                 return $false
             }
 
-            Log "Retrieved SID for user ${userOnly}: ${userSID}"
-
             # Check for Teams Appx package for the logged-in user by SID
+            Log "Checking for Microsoft Teams Appx package for user SID: ${userSID}"
             $teamsPackage = Get-AppxPackage -User $userSID | Where-Object { $_.Name -eq "MSTeams" }
+
             if ($teamsPackage) {
                 Log "Teams version $($teamsPackage.Version) is installed for user ${userOnly} (SID: ${userSID})."
                 return $true
