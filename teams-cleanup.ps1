@@ -207,15 +207,15 @@ function InstallTeams {
         # Define the correct Teams Appx package name for Microsoft Teams 2.0
         $teamsAppxPackageName = "MSTeams"
 
-        # Check if Teams 2.0 is already installed
-        $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
-        if ($teamsAppxPackage) {
-            Log "Microsoft Teams 2.0 is already installed. Version: $($teamsAppxPackage.Version)"
+        # Check if Teams 2.0 is already provisioned
+        $teamsProvisionedPackage = Get-AppProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
+        if ($teamsProvisionedPackage) {
+            Log "Microsoft Teams 2.0 is already provisioned on the system."
             return $true
         }
 
-        # If not installed, attempt to download and install the MSIX package
-        Log "Microsoft Teams 2.0 is not installed. Downloading and installing from the MSIX package..."
+        # If not provisioned, attempt to download and install the MSIX package
+        Log "Microsoft Teams 2.0 is not provisioned. Downloading and installing from the MSIX package..."
 
         # Define the download URL and local path for the MSIX package
         $msixPackageUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
@@ -236,30 +236,14 @@ function InstallTeams {
         # Wait for a few seconds to allow the system to register the installation
         Start-Sleep -Seconds 15
 
-        # Retry verification of installation
-        $retryCount = 0
-        $maxRetries = 3
-        $isInstalled = $false
+        # Verify the installation using Get-AppProvisionedPackage
+        $teamsProvisionedPackage = Get-AppProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
 
-        while ($retryCount -lt $maxRetries -and -not $isInstalled) {
-            Log "Checking if Microsoft Teams 2.0 is installed (attempt $($retryCount + 1) of $maxRetries)..."
-            $teamsAppxPackage = Get-AppxPackage -Name $teamsAppxPackageName
-
-            if ($teamsAppxPackage) {
-                Log "Microsoft Teams 2.0 installed successfully. Version: $($teamsAppxPackage.Version)"
-                $isInstalled = $true
-                return $true
-            } else {
-                Log "Microsoft Teams 2.0 not detected. Retrying after a delay..."
-                Start-Sleep -Seconds 10
-            }
-
-            $retryCount++
-        }
-
-        # If the installation check still fails after retries
-        if (-not $isInstalled) {
-            Log "ERROR: Failed to verify the installation of Microsoft Teams 2.0."
+        if ($teamsProvisionedPackage) {
+            Log "Microsoft Teams 2.0 provisioned successfully. Version: $($teamsProvisionedPackage.Version)"
+            return $true
+        } else {
+            Log "ERROR: Failed to verify the provisioning of Microsoft Teams 2.0."
             return $false
         }
 
