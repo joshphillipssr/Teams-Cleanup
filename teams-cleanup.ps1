@@ -173,13 +173,19 @@ function RemoveTeamsForUser {
             # Check and remove Teams (Appx packages)
             $teams = Get-AppxPackage -User $userSID | Where-Object { $_.Name -like "*Teams*" }
             if ($teams) {
-                Log "Teams detected. Removing..."
+                Log "Found the following Teams packages for user $userOnly:"
                 foreach ($package in $teams) {
-                    Remove-AppxPackage -Package $package.PackageFullName -User $userSID
-                    Log "Removed Teams package: $($package.Name)"
+                    Log " - $($package.Name), Version: $($package.Version)"
                 }
+
+            # Proceed to remove each detected Teams package
+            Log "Removing all detected Teams packages..."
+            foreach ($package in $teams) {
+                Remove-AppxPackage -Package $package.PackageFullName -User $userSID
+                Log "Removed Teams package: $($package.Name)"
+            }
             } else {
-                Log "No Teams v2 packages found for user."
+    Log "No Teams packages found for user."
             }
 
             # Check and remove Teams v1 from AppData
