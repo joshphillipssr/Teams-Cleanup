@@ -120,6 +120,36 @@ function RemoveTeamsClassicWide {
     }
 }
 
+function RemoveTeamsPersonalProvisionedPackage {
+    Log "Starting removal of Microsoft Teams Personal provisioned package..."
+
+    try {
+        # Find the provisioned package for Microsoft Teams
+        $package = Get-AppProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*MicrosoftTeams*" }
+
+        if ($package) {
+            Log "Microsoft Teams Personal provisioned package found: $($package.DisplayName), Version: $($package.Version)"
+
+            # Attempt to remove the provisioned package
+            Log "Attempting to remove Microsoft Teams Personal provisioned package..."
+            $result = Remove-AppxProvisionedPackage -Online -PackageName $package.PackageName
+
+            if ($result) {
+                Log "Microsoft Teams Personal provisioned package removed successfully."
+            } else {
+                Log "ERROR: Failed to remove Microsoft Teams Personal provisioned package."
+            }
+        } else {
+            Log "No Microsoft Teams Personal provisioned package found."
+        }
+    } catch {
+        # Catch any errors during the process
+        Log "ERROR: An exception occurred while attempting to remove Microsoft Teams Personal provisioned package. Exception: $_"
+    }
+
+    Log "Completed removal process for Microsoft Teams Personal provisioned package."
+}
+
 # Check for v1 and v2 of Teams within the user context
 function IsTeamsInstalledForUser {
     try {
@@ -140,16 +170,30 @@ function IsTeamsInstalledForUser {
 
             Log "Retrieved SID for user ${userOnly}: ${userSID}"
 
-            # Check for Teams Appx package for the logged-in user by SID
-            $teamsPackage = Get-AppxPackage -User $userSID | Where-Object { $_.Name -eq "MSTeams" }
+            # Check for any Teams Appx package for the logged-in user by SID
+            $teamsPackages = Get-AppxPackage -User $userSID | Where-Object { $_.Name -like "*Teams*" }
 
-            if ($teamsPackage) {
-                Log "Microsoft Teams is installed for user ${userOnly}. Version: $($teamsPackage.Version)"
+            if ($teamsPackages) {
+                # Log all detected Teams packages
+                foreach ($package in $teamsPackages) {
+                    Log "Detected Microsoft Teams package for user ${userOnly}: $($package.Name), Version: $($package.Version)"
+                }
                 return $true
             } else {
-                Log "Microsoft Teams is not installed for user ${userOnly}."
-                return $false
+                Log "No Microsoft Teams Appx packages are installed for user ${userOnly}."
             }
+
+            # Check for Teams installed in user-specific file paths
+            $teamsUserPath = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Teams")
+            if (Test-Path -Path $teamsUserPath) {
+                Log "Teams installation detected at $teamsUserPath for user ${userOnly}."
+                return $true
+            } else {
+                Log "No Teams installation detected in user-specific paths for user ${userOnly}."
+            }
+
+            # If no installations are found
+            return $false
         } else {
             Log "No user is currently logged in."
             return $false
@@ -266,8 +310,12 @@ function Teams-Cleanup {
     }
 
     # Uninstall existing machine-wide Teams installation
-    Log "Attempting to uninstall any existing Machine-Wide versions of Microsoft Teams..."
+    Log "Calling function to uninstall the Teams v1 Machine-Wide version..."
     RemoveTeamsClassicWide
+
+    #Remove Teams Personal Provisioned Package
+    Log "Calling function to remove Teams Personal Provisioned Package"
+    RemoveTeamsPersonalProvisionedPackage
 
     # Check if Teams is installed for the current user and remove it if necessary
     if (IsTeamsInstalledForUser) {
