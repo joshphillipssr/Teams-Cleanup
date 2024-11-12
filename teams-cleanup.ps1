@@ -30,6 +30,7 @@ function Check-Elevation {
     Log "Script is running with elevated privileges."
 }
 
+
 # Function to create a user notification
 function User-Notification {
     param (
@@ -45,12 +46,10 @@ function User-Notification {
             return
         }
 
-        $userName = $userInfo.UserName
         $sessionId = $userInfo.SessionId
 
         # Send notification to the active session using msg.exe
-        $command = "msg.exe * /TIME:300 `"$Message`""
-        Invoke-Command -ScriptBlock { param($cmd) & cmd.exe /c $cmd } -ArgumentList $command -SessionId $sessionId
+        Start-Process -FilePath "msg.exe" -ArgumentList "* /TIME:300 `"$Message`"" -NoNewWindow -WindowStyle Hidden
 
     } catch {
         Log "ERROR: Failed to display user notification. Exception: $_"
