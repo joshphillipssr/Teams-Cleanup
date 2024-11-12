@@ -235,6 +235,39 @@ function RemoveTeamsForUser {
     Log "Completed cleanup of Teams installations in the user context."
 }
 
+# Function to manually remove leftover Teams files from the user profile
+function Remove-TeamsUserProfileFiles {
+    Log "Starting manual removal of leftover Teams files from the user profile."
+
+    try {
+        # Retrieve the information of the currently logged-in user
+        $userInfo = $global:LoggedInUserInfo
+        if (-not $userInfo) {
+            return
+        }
+
+        $userOnly = $userInfo.UserName
+
+        Log "Logged-in user detected: ${userOnly}. Removing leftover Teams files."
+
+        # Define the path to the Teams folder in the user's profile
+        $teamsUserProfilePath = "C:\Users\$userOnly\AppData\Local\Microsoft\Teams"
+
+        # Check if the path exists and remove it if it does
+        if (Test-Path -Path $teamsUserProfilePath) {
+            Log "Teams folder detected at $teamsUserProfilePath. Removing..."
+            Remove-Item -Path $teamsUserProfilePath -Recurse -Force
+            Log "Teams folder removed successfully."
+        } else {
+            Log "Teams folder not found for user ${userOnly}. No action needed."
+        }
+    } catch {
+        Log "ERROR: Failed to remove Teams files from the user profile. Exception: $_"
+    }
+
+    Log "Completed manual removal of leftover Teams files from the user profile."
+}
+
 # Function to update the registry for Microsoft Teams protocol handler
 function Update-TeamsRegistryEntry {
     Log "Starting update of Microsoft Teams registry entry."
