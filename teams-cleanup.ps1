@@ -32,7 +32,6 @@ function Check-Elevation {
 }
 
 # Function to create a user notification
-# Function to create a user notification
 function User-Notification {
     param (
         [string]$Title = "Teams Cleanup",
@@ -57,7 +56,7 @@ function User-Notification {
         }
 
         # Use Invoke-Command to run the notification for the currently logged-in user session
-        Invoke-Command -ScriptBlock $scriptBlock -ArgumentList $Title, $Message -Credential $null
+        Invoke-Command -ScriptBlock $scriptBlock -ArgumentList $Title, $Message $null
     } catch {
         # Fallback to MessageBox if BurntToast fails
         Add-Type -AssemblyName System.Windows.Forms
