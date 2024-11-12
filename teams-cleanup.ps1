@@ -325,8 +325,7 @@ function Teams-Cleanup {
     # Retrieve the information of the currently logged-in user and store it for use in other functions
     $loggedInUserInfo = Get-LoggedInUserInfo
     if (-not $loggedInUserInfo) {
-        Log "ERROR: Could not retrieve the logged-in user information. Cannot proceed with Teams cleanup."
-        Exit-Script 1
+        Log "ERROR: Could not retrieve the logged-in user information. Continuing with Teams cleanup."
     }
 
     # Check and install Microsoft Edge WebView2 if required
