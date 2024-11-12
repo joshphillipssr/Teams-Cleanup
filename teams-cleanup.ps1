@@ -57,7 +57,6 @@ function User-Notification {
     }
 }
 
-
 # Function to check and install Microsoft Edge WebView2 if it's not already installed
 function Check-WebView2Installation {
     Log "Checking for Microsoft Edge WebView2 installation..."
@@ -180,6 +179,7 @@ function RemoveTeamsPersonalProvisionedPackage {
 }
 
 # Function to retrieve information about the currently logged-in user
+# Function to retrieve information about the currently logged-in user
 function Get-LoggedInUserInfo {
     try {
         # Use Get-CimInstance to retrieve information about the current logged-in user
@@ -197,8 +197,8 @@ function Get-LoggedInUserInfo {
                 return $null
             }
 
-            # Get the user's session ID
-            $sessionId = (Get-CimInstance -ClassName Win32_LogonSession | Get-CimAssociatedInstance -ResultClassName Win32_Account | Where-Object { $_.Name -eq $userOnly }).LogonId
+            # Get the user's session ID using Get-CimInstance
+            $sessionId = (Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -eq 2 } | Get-CimAssociatedInstance -ResultClassName Win32_LoggedOnUser | Where-Object { $_.Antecedent -like "*$userOnly" }).Dependent.SessionId
             if (-not $sessionId) {
                 Log "ERROR: Could not retrieve the session ID for the user: ${userOnly}."
                 return $null
@@ -395,9 +395,6 @@ function InstallTeams {
 function Teams-Cleanup {
     Log "Starting Microsoft Teams installation/uninstallation process."
 
-    # Notify the user that Teams cleanup will begin
-    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes."
-
     # Check for elevated privileges
     Check-Elevation
 
@@ -406,6 +403,9 @@ function Teams-Cleanup {
     if (-not $loggedInUserInfo) {
         Log "ERROR: Could not retrieve the logged-in user information. Continuing with Teams cleanup."
     }
+
+    # Notify the user that Teams cleanup will begin
+    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes."
 
     # Check and install Microsoft Edge WebView2 if required
     if (-not (Check-WebView2Installation)) {
