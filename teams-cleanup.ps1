@@ -150,7 +150,7 @@ function RemoveTeamsPersonalProvisionedPackage {
     Log "Completed removal process for Microsoft Teams Personal provisioned package."
 }
 
-function Get-LoggedInUserSID {
+function Get-LoggedInUserInfo {
     try {
         # Use Get-CimInstance to retrieve information about the current logged-in user
         $loggedInUserInfo = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
@@ -167,7 +167,10 @@ function Get-LoggedInUserSID {
                 return $null
             }
             Log "Retrieved SID for user ${userOnly}: ${userSID}"
-            return $userSID
+            return [PSCustomObject]@{
+                UserName = $userOnly
+                UserSID = $userSID
+            }
         } else {
             Log "No user is currently logged in."
             return $null
@@ -182,49 +185,43 @@ function RemoveTeamsForUser {
     Log "Starting cleanup of Teams installations in the user context."
 
     try {
-        # Retrieve the SID of the currently logged-in user
-        $userSID = Get-LoggedInUserSID
-        if (-not $userSID) {
+        # Retrieve the information of the currently logged-in user
+        $userInfo = $LoggedInUserInfo
+        if (-not $userInfo) {
             return $false
         }
 
-        # Use Get-CimInstance to retrieve information about the current logged-in user
-        $loggedInUserInfo = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
-        
-        if ($loggedInUserInfo -and $loggedInUserInfo -ne "") {
-            # Extract the username (without the domain)
-            $userOnly = $loggedInUserInfo -replace '.*\\', ''
-            Log "Logged-in user detected: ${userOnly}. Checking Teams installation for this user."
+        $userOnly = $userInfo.UserName
+        $userSID = $userInfo.UserSID
 
-            # Check and list all found Teams (Appx packages) before removing them
-            $teams = Get-AppxPackage -User $userSID | Where-Object { $_.Name -like "*Teams*" }
-            if ($teams) {
-                Log "Found the following Teams packages for user ${userOnly}:"
-                foreach ($package in $teams) {
-                    Log " - $($package.Name), Version: $($package.Version)"
-                }
+        Log "Logged-in user detected: ${userOnly}. Checking Teams installation for this user."
 
-                # Proceed to remove each detected Teams package
-                Log "Removing all detected Teams packages..."
-                foreach ($package in $teams) {
-                    Remove-AppxPackage -Package $package.PackageFullName -User $userSID
-                    Log "Removed Teams package: $($package.Name)"
-                }
-            } else {
-                Log "No Teams packages found for user."
+        # Check and list all found Teams (Appx packages) before removing them
+        $teams = Get-AppxPackage -User $userSID | Where-Object { $_.Name -like "*Teams*" }
+        if ($teams) {
+            Log "Found the following Teams packages for user ${userOnly}:"
+            foreach ($package in $teams) {
+                Log " - $($package.Name), Version: $($package.Version)"
             }
 
-            # Check and remove Teams v1 from AppData
-            $teamsV1Path = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Teams")
-            if (Test-Path -Path $teamsV1Path) {
-                Log "Teams v1 detected at $teamsV1Path. Removing..."
-                Remove-Item -Path $teamsV1Path -Recurse -Force
-                Log "Teams v1 removed."
-            } else {
-                Log "Teams v1 is not found for user."
+            # Proceed to remove each detected Teams package
+            Log "Removing all detected Teams packages..."
+            foreach ($package in $teams) {
+                Remove-AppxPackage -Package $package.PackageFullName -User $userSID
+                Log "Removed Teams package: $($package.Name)"
             }
         } else {
-            Log "No user is currently logged in."
+            Log "No Teams packages found for user."
+        }
+
+        # Check and remove Teams v1 from AppData
+        $teamsV1Path = [System.IO.Path]::Combine($env:LOCALAPPDATA, "Microsoft", "Teams")
+        if (Test-Path -Path $teamsV1Path) {
+            Log "Teams v1 detected at $teamsV1Path. Removing..."
+            Remove-Item -Path $teamsV1Path -Recurse -Force
+            Log "Teams v1 removed."
+        } else {
+            Log "Teams v1 is not found for user."
         }
     } catch {
         Log "ERROR: Failed to clean up Teams installations for the user. Exception: $_"
@@ -237,16 +234,10 @@ function RemoveTeamsForUser {
 function Update-TeamsRegistryEntry {
     Log "Starting update of Microsoft Teams registry entry."
 
-    try {
-        # Retrieve the SID of the currently logged-in user
-        $userSID = Get-LoggedInUserSID
-        if (-not $userSID) {
-            Log "ERROR: Could not retrieve the user SID. Aborting registry update."
-            return $false
-        }
+    
 
         # Define the registry path for the Teams protocol handler
-        $registryPath = "HKU:\$userSID\Software\Classes\msteams\shell\open\command"
+        $registryPath = "HKCU:\Software\Classes\msteams\shell\open\command"
         
         # Check if the registry key exists
         if (Test-Path -Path $registryPath) {
@@ -267,12 +258,9 @@ function Update-TeamsRegistryEntry {
         } else {
             Log "ERROR: Registry path $registryPath does not exist. Cannot update Teams registry entry."
         }
-    } catch {
-        Log "ERROR: Failed to update Teams registry entry. Exception: $_"
-    }
+    } 
 
     Log "Completed update of Microsoft Teams registry entry."
-}
 
 # Install Latest version of Teams
 function InstallTeams {
@@ -334,6 +322,13 @@ function Teams-Cleanup {
     # Check for elevated privileges
     Check-Elevation
 
+    # Retrieve the information of the currently logged-in user and store it for use in other functions
+    $loggedInUserInfo = Get-LoggedInUserInfo
+    if (-not $loggedInUserInfo) {
+        Log "ERROR: Could not retrieve the logged-in user information. Cannot proceed with Teams cleanup."
+        Exit-Script 1
+    }
+
     # Check and install Microsoft Edge WebView2 if required
     if (-not (Check-WebView2Installation)) {
         Log "ERROR: Microsoft Edge WebView2 installation failed. Cannot proceed with Teams installation."
@@ -344,17 +339,17 @@ function Teams-Cleanup {
     Log "Calling function to uninstall the Teams v1 Machine-Wide version..."
     RemoveTeamsClassicWide
 
-    # Remove Teams Personal Provisioned Package
-    Log "Calling function to remove Teams Personal Provisioned Package"
+    # Uninstall Teams Personal Provisioned Package
+    Log "Calling function to remove Teams Personal provisioned package"
     RemoveTeamsPersonalProvisionedPackage
 
     # Clean up Teams installations for the current user
     Log "Checking for and removing any Teams versions installed for the currently logged-in user."
     RemoveTeamsForUser
 
-    # Update the registry for the Microsoft Teams protocol handler
-    Log "Updating registry for Microsoft Teams protocol handler."
-    Update-TeamsRegistryEntry
+    # Manually remove leftover Teams files from the user profile
+    Log "Removing leftover Teams files from the user profile."
+    Remove-TeamsUserProfileFiles
 
     # Install Teams after the cleanup
     Log "Proceeding with Teams installation."
@@ -365,6 +360,11 @@ function Teams-Cleanup {
         Log "ERROR: Microsoft Teams installation failed."
         Exit-Script 1
     }
+    
+    # Update the registry for the Microsoft Teams protocol handler
+    Log "Updating registry for Microsoft Teams protocol handler."
+    Update-TeamsRegistryEntry
+
 }
 
 # Run the script to uninstall previous versions and install the latest Teams
