@@ -31,6 +31,7 @@ function Check-Elevation {
 }
 
 # Function to create a user notification
+# Function to create a user notification
 function User-Notification {
     param (
         [string]$Title = "Teams Cleanup",
@@ -48,7 +49,7 @@ function User-Notification {
         $sessionId = $userInfo.SessionId
 
         # Send notification to the active session using msg.exe
-        Start-Process -FilePath "msg.exe" -ArgumentList "$sessionId /TIME:300 `"$Message`"" -WindowStyle Hidden
+        Start-Process -FilePath "msg.exe" -ArgumentList "$sessionId /TIME:300 `"$Message`""
 
     } catch {
         Log "ERROR: Failed to display user notification. Exception: $_"
@@ -420,6 +421,7 @@ function Teams-Cleanup {
     }
 
     # Notify the user that Teams cleanup will begin
+    Log "Notifying current user of impending Teams cleanup."
     User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes."
 
     # Check and install Microsoft Edge WebView2 if required
@@ -459,9 +461,9 @@ function Teams-Cleanup {
     Update-TeamsRegistryEntry
 
     # Notify the user that Teams cleanup has completed
+    Log "Notifying user Teams cleanup has completed."
     User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams."
 }
-
 
 # Run the script to uninstall previous versions and install the latest Teams
 Teams-Cleanup
