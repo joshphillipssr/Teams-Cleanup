@@ -31,6 +31,40 @@ function Check-Elevation {
     Log "Script is running with elevated privileges."
 }
 
+# Function to create a user notification
+# Function to create a user notification
+function User-Notification {
+    param (
+        [string]$Title = "Teams Cleanup",
+        [string]$Message = "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes, and may affect Teams functionality for up to 5 minutes after it begins. Please wrap up any Teams meetings and close Teams."
+    )
+
+    try {
+        # Retrieve the information of the currently logged-in user
+        $userInfo = $global:LoggedInUserInfo
+        if (-not $userInfo) {
+            Log "ERROR: User information could not be retrieved. Skipping user notification."
+            return
+        }
+
+        $userName = $userInfo.UserName
+
+        # Run the notification script in the context of the logged-in user
+        $scriptBlock = {
+            param($Title, $Message)
+            Import-Module BurntToast -ErrorAction Stop
+            New-BurntToastNotification -Text $Title, $Message
+        }
+
+        # Use Invoke-Command to run the notification for the currently logged-in user session
+        Invoke-Command -ScriptBlock $scriptBlock -ArgumentList $Title, $Message -Credential $null
+    } catch {
+        # Fallback to MessageBox if BurntToast fails
+        Add-Type -AssemblyName System.Windows.Forms
+        [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', 'Information')
+    }
+}
+
 # Function to check and install Microsoft Edge WebView2 if it's not already installed
 function Check-WebView2Installation {
     Log "Checking for Microsoft Edge WebView2 installation..."
@@ -298,9 +332,8 @@ function Update-TeamsRegistryEntry {
         } else {
             Log "ERROR: Registry path $registryPath does not exist. Cannot update Teams registry entry."
         }
+     Log "Completed update of Microsoft Teams registry entry."
     } 
-
-    Log "Completed update of Microsoft Teams registry entry."
 
 # Install Latest version of Teams
 function InstallTeams {
@@ -359,6 +392,9 @@ function InstallTeams {
 function Teams-Cleanup {
     Log "Starting Microsoft Teams installation/uninstallation process."
 
+    # Notify the user that Teams cleanup will begin
+    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes."
+
     # Check for elevated privileges
     Check-Elevation
 
@@ -404,7 +440,10 @@ function Teams-Cleanup {
     Log "Updating registry for Microsoft Teams protocol handler."
     Update-TeamsRegistryEntry
 
+    # Notify the user that Teams cleanup has completed
+    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams."
 }
+
 
 # Run the script to uninstall previous versions and install the latest Teams
 Teams-Cleanup
