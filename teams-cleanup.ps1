@@ -7,12 +7,14 @@ function Log {
 }
 
 # Script termination function
+# Script termination function
 function Exit-Script {
     param (
         [int]$ExitCode
     )
     if (-not $global:PreventExit) {
-        exit $ExitCode
+        Write-Host "Exit code: $ExitCode. Script completed."
+        return $ExitCode
     } else {
         Write-Host "Exit code: $ExitCode"
         return $ExitCode
