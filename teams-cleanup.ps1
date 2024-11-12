@@ -179,7 +179,6 @@ function RemoveTeamsPersonalProvisionedPackage {
 }
 
 # Function to retrieve information about the currently logged-in user
-# Function to retrieve information about the currently logged-in user
 function Get-LoggedInUserInfo {
     try {
         # Use Get-CimInstance to retrieve information about the current logged-in user
@@ -197,8 +196,26 @@ function Get-LoggedInUserInfo {
                 return $null
             }
 
-            # Get the user's session ID using Get-CimInstance
-            $sessionId = (Get-CimInstance -ClassName Win32_LogonSession | Where-Object { $_.LogonType -eq 2 } | Get-CimAssociatedInstance -ResultClassName Win32_LoggedOnUser | Where-Object { $_.Antecedent -like "*$userOnly" }).Dependent.SessionId
+            # Get all logon sessions
+            $logonSessions = Get-CimInstance -ClassName Win32_LogonSession
+
+            # Iterate over each session to find the one that matches the user
+            $sessionId = $null
+            foreach ($session in $logonSessions) {
+                $associatedAccounts = Get-CimAssociatedInstance -InputObject $session -ResultClassName Win32_Account
+                foreach ($account in $associatedAccounts) {
+                    if ($account.Name -eq $userOnly) {
+                        $sessionId = $session.LogonId
+                        break
+                    }
+                }
+
+                # Exit loop early if the session ID is found
+                if ($sessionId) {
+                    break
+                }
+            }
+
             if (-not $sessionId) {
                 Log "ERROR: Could not retrieve the session ID for the user: ${userOnly}."
                 return $null
@@ -208,8 +225,8 @@ function Get-LoggedInUserInfo {
 
             # Store the information globally
             $global:LoggedInUserInfo = [PSCustomObject]@{
-                UserName = $userOnly
-                UserSID = $userSID
+                UserName  = $userOnly
+                UserSID   = $userSID
                 SessionId = $sessionId
             }
 
