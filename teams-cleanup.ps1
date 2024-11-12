@@ -7,7 +7,6 @@ function Log {
 }
 
 # Script termination function
-# Script termination function
 function Exit-Script {
     param (
         [int]$ExitCode
@@ -47,22 +46,17 @@ function User-Notification {
         }
 
         $userName = $userInfo.UserName
+        $sessionId = $userInfo.SessionId
 
-        # Run the notification script in the context of the logged-in user
-        $scriptBlock = {
-            param($Title, $Message)
-            Import-Module BurntToast -ErrorAction Stop
-            New-BurntToastNotification -Text $Title, $Message
-        }
+        # Send notification to the active session using msg.exe
+        $command = "msg.exe * /TIME:300 `"$Message`""
+        Invoke-Command -ScriptBlock { param($cmd) & cmd.exe /c $cmd } -ArgumentList $command -SessionId $sessionId
 
-        # Use Invoke-Command to run the notification for the currently logged-in user session
-        Invoke-Command -ScriptBlock $scriptBlock -ArgumentList $Title, $Message $null
     } catch {
-        # Fallback to MessageBox if BurntToast fails
-        Add-Type -AssemblyName System.Windows.Forms
-        [System.Windows.Forms.MessageBox]::Show($Message, $Title, 'OK', 'Information')
+        Log "ERROR: Failed to display user notification. Exception: $_"
     }
 }
+
 
 # Function to check and install Microsoft Edge WebView2 if it's not already installed
 function Check-WebView2Installation {
@@ -185,6 +179,7 @@ function RemoveTeamsPersonalProvisionedPackage {
     Log "Completed removal process for Microsoft Teams Personal provisioned package."
 }
 
+# Function to retrieve information about the currently logged-in user
 function Get-LoggedInUserInfo {
     try {
         # Use Get-CimInstance to retrieve information about the current logged-in user
@@ -193,20 +188,29 @@ function Get-LoggedInUserInfo {
         if ($loggedInUserInfo -and $loggedInUserInfo -ne "") {
             # Extract the username (without the domain)
             $userOnly = $loggedInUserInfo -replace '.*\\', ''
-            Log "Logged-in user detected: ${userOnly}. Retrieving SID for this user."
+            Log "Logged-in user detected: ${userOnly}. Retrieving SID and session ID for this user."
 
-            # Get the user's SID using the new WMI (CIM) method
+            # Get the user's SID
             $userSID = (Get-CimInstance -Class Win32_UserAccount | Where-Object { $_.Name -eq $userOnly }).SID
             if (-not $userSID) {
                 Log "ERROR: Could not retrieve the SID for the user: ${userOnly}."
                 return $null
             }
-            Log "Retrieved SID for user ${userOnly}: ${userSID}"
+
+            # Get the user's session ID
+            $sessionId = (Get-CimInstance -ClassName Win32_LogonSession | Get-CimAssociatedInstance -ResultClassName Win32_Account | Where-Object { $_.Name -eq $userOnly }).LogonId
+            if (-not $sessionId) {
+                Log "ERROR: Could not retrieve the session ID for the user: ${userOnly}."
+                return $null
+            }
+
+            Log "Retrieved SID and session ID for user ${userOnly}: SID = ${userSID}, Session ID = ${sessionId}"
 
             # Store the information globally
             $global:LoggedInUserInfo = [PSCustomObject]@{
                 UserName = $userOnly
                 UserSID = $userSID
+                SessionId = $sessionId
             }
 
             return $global:LoggedInUserInfo
@@ -215,7 +219,7 @@ function Get-LoggedInUserInfo {
             return $null
         }
     } catch {
-        Log "ERROR: Failed to retrieve logged-in user SID. Exception: $_"
+        Log "ERROR: Failed to retrieve logged-in user information. Exception: $_"
         return $null
     }
 }
