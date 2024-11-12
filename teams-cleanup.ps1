@@ -167,10 +167,14 @@ function Get-LoggedInUserInfo {
                 return $null
             }
             Log "Retrieved SID for user ${userOnly}: ${userSID}"
-            return [PSCustomObject]@{
+
+            # Store the information globally
+            $global:LoggedInUserInfo = [PSCustomObject]@{
                 UserName = $userOnly
                 UserSID = $userSID
             }
+
+            return $global:LoggedInUserInfo
         } else {
             Log "No user is currently logged in."
             return $null
@@ -186,10 +190,11 @@ function RemoveTeamsForUser {
 
     try {
         # Retrieve the information of the currently logged-in user
-        $userInfo = $LoggedInUserInfo
+        $userInfo = $global:LoggedInUserInfo
         if (-not $userInfo) {
-            return $false
-        }
+        Log "ERROR: User information could not be retrieved. Skipping Teams cleanup for the user."
+        return
+    }
 
         $userOnly = $userInfo.UserName
         $userSID = $userInfo.UserSID
