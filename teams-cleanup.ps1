@@ -538,7 +538,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup has completed
     Log "Notifying user Teams cleanup has completed."
-    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams. When you first launch teams, please be sure to select your firstname.lastname@goodyearaz.gov email account if it asks for one. If you encounter any problems with Teams, please contact the Helpdesk at 623-822-7850." -WaitBeforeStart $false
+    User-Notification -Title "Teams Cleanup Complete" -Message "Test" -WaitBeforeStart $false
 }
 
 # Run the script to uninstall previous versions and install the latest Teams
