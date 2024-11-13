@@ -1,12 +1,15 @@
 function Log {
     param (
-        [string]$Text
+        [string]$Text,
+        [string]$LogLevel = "INFO"
     )
     $timestamp = "{0:yyyy-MM-dd HH:mm:ss}" -f [DateTime]::Now
-    $logMessage = "$timestamp `- $($Text)"
+    $logMessage = "$timestamp `[$LogLevel`] - $($Text)"
     
     # Write to shell
-    Write-Information -MessageData $logMessage -InformationAction Continue
+    if ($LogLevel -eq "INFO" -or $LogLevel -eq "ERROR") {
+        Write-Information -MessageData $logMessage -InformationAction Continue
+    }
     
     # Write to log file
     $logFilePath = "C:\Logs\TeamsCleanup.log"
