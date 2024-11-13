@@ -33,7 +33,8 @@ function Check-Elevation {
 # Function to send a notification to the logged-in user
 function User-Notification {
     param (
-        [string]$message
+        [string]$message,
+        [bool]$WaitBeforeStart = $false  # Optional parameter to control waiting behavior
     )
     Log "Sending user notification: $message"
 
@@ -53,24 +54,9 @@ function User-Notification {
         # Send the notification using msg.exe
         Start-Process -FilePath "msg.exe" -ArgumentList "$sessionId /TIME:300 `"$message`"" -NoNewWindow
 
-        # Pause the script to wait for user interaction or timeout
-        $elapsedTime = 0
-        $timeout = 300  # 5 minutes in seconds
-        $checkInterval = 5  # Check every 5 seconds
-
-        while ($elapsedTime -lt $timeout) {
-            Start-Sleep -Seconds $checkInterval
-            $elapsedTime += $checkInterval
-
-            # Check if the user has acknowledged the message box (clicked OK)
-            if (-not (Get-Process -Name "msg" -ErrorAction SilentlyContinue)) {
-                Log "User ${userOnly} acknowledged the message."
-                break
-            }
-        }
-
-        if ($elapsedTime -ge $timeout) {
-            Log "User did not acknowledge the message within the timeout period. Continuing script."
+        # Pause the script to wait for user interaction or timeout if the parameter is true
+        if ($WaitForAcknowledgement) {
+            Start-Sleep -Seconds 300  # Wait for 5 minutes before continuing
         }
     } catch {
         Log "ERROR: Failed to display user notification. Exception: $_"
@@ -488,7 +474,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup will begin
     Log "Notifying current user of impending Teams cleanup."
-    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes."
+    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes." -WaitBeforeStart $true
 
     # Check and install Microsoft Edge WebView2 if required
     if (-not (Check-WebView2Installation)) {
@@ -534,7 +520,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup has completed
     Log "Notifying user Teams cleanup has completed."
-    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams."
+    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams. If you have any problems with Teams, please contact the Helpdesk: helpdesk@goodyearaz.gov" -WaitBeforeStart $false
 }
 
 # Run the script to uninstall previous versions and install the latest Teams
