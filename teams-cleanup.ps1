@@ -426,13 +426,25 @@ function Register-TeamsPackageForUser {
 
         $userOnly = $userInfo.UserName
 
-        # Define the path to the provisioned package
-        $packagePath = "C:\Program Files\WindowsApps\MicrosoftTeams*"
+        # Get the path to the provisioned Microsoft Teams package
+        $teamsPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -like "*MSTeams*" }
+        if (-not $teamsPackage) {
+            Log "ERROR: Could not locate the Microsoft Teams provisioned package. Skipping registration."
+            return
+        }
+
+        $packagePath = $teamsPackage.InstallLocation
 
         # Run Add-AppxPackage in the context of the logged-in user to register the app
         Add-AppxPackage -Path $packagePath -Register -DisableDevelopmentMode
 
-        Log "Successfully registered Microsoft Teams package for the current logged-in user."
+        # Verify if Teams was successfully registered for the user
+        $teamsInstalled = Get-AppxPackage -User $userOnly | Where-Object { $_.Name -like "*MSTeams*" }
+        if ($teamsInstalled) {
+            Log "Successfully registered Microsoft Teams package for the current logged-in user. Version: $($teamsInstalled.Version)"
+        } else {
+            Log "ERROR: Microsoft Teams package registration verification failed for the user."
+        }
     } catch {
         Log "ERROR: Failed to register Microsoft Teams package for the user. Exception: $_"
     }
