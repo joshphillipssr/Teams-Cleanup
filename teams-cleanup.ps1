@@ -413,6 +413,37 @@ function InstallTeams {
     }
 }
 
+function Register-TeamsPackageForUser {
+    Log "Starting registration of Microsoft Teams package for the current logged-in user."
+
+    try {
+        # Retrieve the information of the currently logged-in user
+        $userInfo = $global:LoggedInUserInfo
+        if (-not $userInfo) {
+            Log "ERROR: User information could not be retrieved. Skipping Teams registration for the user."
+            return
+        }
+
+        $userOnly = $userInfo.UserName
+        $sessionId = $userInfo.SessionId
+
+        # Define the path to the provisioned package
+        $packagePath = "C:\Program Files\WindowsApps\MicrosoftTeams*"
+
+        # Run Add-AppxPackage in the context of the logged-in user to register the app
+        Invoke-Command -ScriptBlock {
+            param ($packagePath)
+            Add-AppxPackage -Path $packagePath
+        } -SessionId $sessionId -ArgumentList $packagePath
+
+        Log "Successfully registered Microsoft Teams package for the current logged-in user."
+    } catch {
+        Log "ERROR: Failed to register Microsoft Teams package for the user. Exception: $_"
+    }
+
+    Log "Completed registration of Microsoft Teams package."
+}
+
 function Teams-Cleanup {
     Log "Starting Microsoft Teams installation/uninstallation process."
 
@@ -437,7 +468,7 @@ function Teams-Cleanup {
 
     # Kill any running Teams processes
     KillTeamsProcesses
-    
+
     # Uninstall existing machine-wide Teams installation
     Log "Calling function to uninstall the Teams v1 Machine-Wide version..."
     RemoveTeamsClassicWide
@@ -463,6 +494,9 @@ function Teams-Cleanup {
         Log "ERROR: Microsoft Teams installation failed."
         Exit-Script 1
     }
+    
+    # Register the Teams package for the current user
+    Register-TeamsPackageForUser
     
     # Update the registry for the Microsoft Teams protocol handler
     Log "Updating registry for Microsoft Teams protocol handler."
