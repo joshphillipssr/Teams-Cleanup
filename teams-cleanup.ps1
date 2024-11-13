@@ -220,6 +220,31 @@ function Get-LoggedInUserInfo {
     }
 }
 
+function KillTeamsProcesses {
+    Log "Starting to search for and terminate any running Microsoft Teams processes."
+
+    try {
+        # Search for any running processes with names matching *teams*
+        $teamsProcesses = Get-Process -Name "*teams*" -ErrorAction SilentlyContinue
+
+        if ($teamsProcesses) {
+            foreach ($process in $teamsProcesses) {
+                Log "Found running Teams process: $($process.ProcessName) (ID: $($process.Id)). Attempting to terminate."
+                
+                # Attempt to stop the process
+                Stop-Process -Id $process.Id -Force -ErrorAction Stop
+                Log "Successfully terminated process: $($process.ProcessName) (ID: $($process.Id))."
+            }
+        } else {
+            Log "No running Teams processes found."
+        }
+    } catch {
+        Log "ERROR: Failed to terminate Teams process. Exception: $_"
+    }
+
+    Log "Completed search and termination of Teams processes."
+}
+
 function RemoveTeamsForUser {
     Log "Starting cleanup of Teams installations in the user context."
 
@@ -410,6 +435,9 @@ function Teams-Cleanup {
         Exit-Script 1
     }
 
+    # Kill any running Teams processes
+    KillTeamsProcesses
+    
     # Uninstall existing machine-wide Teams installation
     Log "Calling function to uninstall the Teams v1 Machine-Wide version..."
     RemoveTeamsClassicWide
