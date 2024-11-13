@@ -30,12 +30,12 @@ function Check-Elevation {
     Log "Script is running with elevated privileges."
 }
 
-# Function to create a user notification
+# Function to send a notification to the logged-in user
 function User-Notification {
     param (
-        [string]$Title = "Teams Cleanup",
-        [string]$Message = "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes, and may affect Teams functionality for up to 5 minutes after it begins. Please wrap up any Teams meetings and close Teams."
+        [string]$message
     )
+    Log "Sending user notification: $message"
 
     try {
         # Retrieve the information of the currently logged-in user
@@ -46,10 +46,32 @@ function User-Notification {
         }
 
         $sessionId = $userInfo.SessionId
+        $userOnly = $userInfo.UserName
 
-        # Send notification to the active session using msg.exe
-        Start-Process -FilePath "msg.exe" -ArgumentList "$sessionId /TIME:300 `"$Message`""
+        Log "Sending notification to user ${userOnly} in session ${sessionId}."
 
+        # Send the notification using msg.exe
+        Start-Process -FilePath "msg.exe" -ArgumentList "$sessionId /TIME:300 `"$message`"" -NoNewWindow
+
+        # Pause the script to wait for user interaction or timeout
+        $elapsedTime = 0
+        $timeout = 300  # 5 minutes in seconds
+        $checkInterval = 5  # Check every 5 seconds
+
+        while ($elapsedTime -lt $timeout) {
+            Start-Sleep -Seconds $checkInterval
+            $elapsedTime += $checkInterval
+
+            # Check if the user has acknowledged the message box (clicked OK)
+            if (-not (Get-Process -Name "msg" -ErrorAction SilentlyContinue)) {
+                Log "User ${userOnly} acknowledged the message."
+                break
+            }
+        }
+
+        if ($elapsedTime -ge $timeout) {
+            Log "User did not acknowledge the message within the timeout period. Continuing script."
+        }
     } catch {
         Log "ERROR: Failed to display user notification. Exception: $_"
     }
@@ -370,7 +392,7 @@ function InstallTeams {
         # Check if Teams 2.0 is already provisioned
         $teamsProvisionedPackage = Get-AppProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
         if ($teamsProvisionedPackage) {
-            Log "Microsoft Teams 2.0 is already provisioned on the system."
+            Log "Microsoft Teams 2.0 is already provisioned on the system. Version: $($teamsProvisionedPackage.Version)"
             return $true
         }
 
@@ -394,7 +416,7 @@ function InstallTeams {
         Log "Microsoft Teams 2.0 installation initiated from the MSIX package."
 
         # Wait for a few seconds to allow the system to register the installation
-        Start-Sleep -Seconds 15
+        Start-Sleep -Seconds 5
 
         # Verify the installation using Get-AppProvisionedPackage
         $teamsProvisionedPackage = Get-AppProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
@@ -441,7 +463,7 @@ function Register-TeamsPackageForUser {
         # Verify if Teams was successfully registered for the user
         $teamsInstalled = Get-AppxPackage -User $userOnly | Where-Object { $_.Name -like "*MSTeams*" }
         if ($teamsInstalled) {
-            Log "Successfully registered Microsoft Teams package for the current logged-in user. Version: $($teamsInstalled.Version)"
+            Log "Successfully registered Microsoft Teams package for the current logged-in user: $($userInfo.UserName). Version: $($teamsInstalled.Version)"
         } else {
             Log "ERROR: Microsoft Teams package registration verification failed for the user."
         }
