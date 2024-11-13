@@ -31,7 +31,6 @@ function Check-Elevation {
 }
 
 # Function to create a user notification
-# Function to create a user notification
 function User-Notification {
     param (
         [string]$Title = "Teams Cleanup",
@@ -180,47 +179,24 @@ function RemoveTeamsPersonalProvisionedPackage {
 # Function to retrieve information about the currently logged-in user
 function Get-LoggedInUserInfo {
     try {
-        # Use Get-CimInstance to retrieve information about the current logged-in user
-        $loggedInUserInfo = Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object -ExpandProperty UserName
+        # Run quser to get logged-in user information
+        $quserOutput = quser | Select-Object -Skip 1 | Out-String
+        $userDetails = $quserOutput -split '\s{2,}'
         
-        if ($loggedInUserInfo -and $loggedInUserInfo -ne "") {
-            # Extract the username (without the domain)
-            $userOnly = $loggedInUserInfo -replace '.*\\', ''
-            Log "Logged-in user detected: ${userOnly}. Retrieving SID and session ID for this user."
+        if ($userDetails.Count -ge 4) {
+            # Extract the username and session ID from the quser output
+            $userOnly = $userDetails[0].Trim()
+            $sessionId = [int]$userDetails[2].Trim()
+            Log "Logged-in user detected: ${userOnly} with Session ID: ${sessionId}. Retrieving SID for this user."
 
-            # Get the user's SID
+            # Get the user's SID using Get-CimInstance
             $userSID = (Get-CimInstance -Class Win32_UserAccount | Where-Object { $_.Name -eq $userOnly }).SID
             if (-not $userSID) {
                 Log "ERROR: Could not retrieve the SID for the user: ${userOnly}."
                 return $null
             }
 
-            # Get all logon sessions
-            $logonSessions = Get-CimInstance -ClassName Win32_LogonSession
-
-            # Iterate over each session to find the one that matches the user
-            $sessionId = $null
-            foreach ($session in $logonSessions) {
-                $associatedAccounts = Get-CimAssociatedInstance -InputObject $session -ResultClassName Win32_Account
-                foreach ($account in $associatedAccounts) {
-                    if ($account.Name -eq $userOnly) {
-                        $sessionId = $session.LogonId
-                        break
-                    }
-                }
-
-                # Exit loop early if the session ID is found
-                if ($sessionId) {
-                    break
-                }
-            }
-
-            if (-not $sessionId) {
-                Log "ERROR: Could not retrieve the session ID for the user: ${userOnly}."
-                return $null
-            }
-
-            Log "Retrieved SID and session ID for user ${userOnly}: SID = ${userSID}, Session ID = ${sessionId}"
+            Log "Retrieved SID for user ${userOnly}: SID = ${userSID}"
 
             # Store the information globally
             $global:LoggedInUserInfo = [PSCustomObject]@{
@@ -231,7 +207,7 @@ function Get-LoggedInUserInfo {
 
             return $global:LoggedInUserInfo
         } else {
-            Log "No user is currently logged in."
+            Log "ERROR: Could not parse quser output correctly. No user session information available."
             return $null
         }
     } catch {
