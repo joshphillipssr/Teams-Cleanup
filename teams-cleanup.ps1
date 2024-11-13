@@ -492,7 +492,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup will begin
     Log "Notifying current user of impending Teams cleanup."
-    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes and will likely affect Microsoft Teams functionality for a few minutes while it runs. You will receive another message when the process is complete." -WaitBeforeStart $false
+    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes and will likely affect Microsoft Teams functionality for a few minutes while it runs. You will receive another message when the process is complete." -WaitBeforeStart $true
 
     # Check and install Microsoft Edge WebView2 if required
     if (-not (Check-WebView2Installation)) {
@@ -538,7 +538,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup has completed
     Log "Notifying user Teams cleanup has completed."
-    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams. When you first launch teams, please be sure to select your <firstname.lastname@goodyearaz.gov> email account if it asks for one.\n\nIf you encounter any problems with Teams, please contact the Helpdesk at (623) 822-7850." -WaitBeforeStart $false
+    User-Notification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed successfully. You may now use Microsoft Teams. When you first launch teams, please be sure to select your <firstname.lastname@goodyearaz.gov> email account if it asks for one. If you encounter any problems with Teams, please contact the Helpdesk at (623) 822-7850." -WaitBeforeStart $false
 }
 
 # Run the script to uninstall previous versions and install the latest Teams
