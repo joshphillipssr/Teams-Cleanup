@@ -474,7 +474,7 @@ function Teams-Cleanup {
 
     # Notify the user that Teams cleanup will begin
     Log "Notifying current user of impending Teams cleanup."
-    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin shortly and may affect Teams functionality for up to 5 minutes." -WaitBeforeStart $true
+    User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes and will likely affect Microsoft Teams functionality for a few minutes while it runs. You will recaive another message when the process is complete." -WaitBeforeStart $false
 
     # Check and install Microsoft Edge WebView2 if required
     if (-not (Check-WebView2Installation)) {
