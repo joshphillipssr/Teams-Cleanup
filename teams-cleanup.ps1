@@ -186,6 +186,10 @@ function Get-LoggedInUserInfo {
         if ($userDetails.Count -ge 4) {
             # Extract the username and session ID from the quser output
             $userOnly = $userDetails[0].Trim()
+            if ($userOnly.StartsWith(">")) {
+                $userOnly = $userOnly.TrimStart(">")
+                $userOnly = $userOnly.Trim()
+            }
             $sessionId = [int]$userDetails[2].Trim()
             Log "Logged-in user detected: ${userOnly} with Session ID: ${sessionId}. Retrieving SID for this user."
 
