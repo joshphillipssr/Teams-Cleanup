@@ -6,14 +6,18 @@ function Log {
     $timestamp = "{0:yyyy-MM-dd HH:mm:ss}" -f [DateTime]::Now
     $logMessage = "$timestamp `[$LogLevel`] - $($Text)"
     
-    # Write to shell
+    # Write to shell for INFO and ERROR levels
     if ($LogLevel -eq "INFO" -or $LogLevel -eq "ERROR") {
         Write-Information -MessageData $logMessage -InformationAction Continue
     }
     
-    # Write to log file
+    # Write all log levels to the log file
     $logFilePath = "C:\Logs\TeamsCleanup.log"
     try {
+        if (-not (Test-Path -Path "C:\Logs")) {
+            New-Item -Path "C:\Logs" -ItemType Directory -Force
+        }
+        
         Add-Content -Path $logFilePath -Value $logMessage
     } catch {
         Write-Error "ERROR: Failed to write to log file. Exception: $_"
