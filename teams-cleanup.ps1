@@ -425,16 +425,12 @@ function Register-TeamsPackageForUser {
         }
 
         $userOnly = $userInfo.UserName
-        $sessionId = $userInfo.SessionId
 
         # Define the path to the provisioned package
         $packagePath = "C:\Program Files\WindowsApps\MicrosoftTeams*"
 
         # Run Add-AppxPackage in the context of the logged-in user to register the app
-        Invoke-Command -ScriptBlock {
-            param ($packagePath)
-            Add-AppxPackage -Path $packagePath
-        } -SessionId $sessionId -ArgumentList $packagePath
+        Add-AppxPackage -Path $packagePath -Register -DisableDevelopmentMode
 
         Log "Successfully registered Microsoft Teams package for the current logged-in user."
     } catch {
@@ -497,7 +493,7 @@ function Teams-Cleanup {
     
     # Register the Teams package for the current user
     Register-TeamsPackageForUser
-    
+
     # Update the registry for the Microsoft Teams protocol handler
     Log "Updating registry for Microsoft Teams protocol handler."
     Update-TeamsRegistryEntry
