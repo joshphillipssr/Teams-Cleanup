@@ -78,36 +78,48 @@ function Get-LoggedInUserInfo {
         Log -LogLevel INFO "Retrieving information about the current logged-in user."
 
         # Use quser to retrieve information about the current logged-in user
-        $quserOutput = quser | Select-String "^>" | ForEach-Object { $_ -replace '^>', '' }
+        $quserOutput = quser
 
         if ($quserOutput -and $quserOutput -ne "") {
-            $userDetails = $quserOutput -split '\s{2,}'
-            if ($userDetails.Count -ge 4) {
-                # Extract the username and session ID from the quser output
-                $userOnly = $userDetails[0].Trim()
-                $sessionId = [int]$userDetails[2].Trim()
-                Log -LogLevel INFO "Logged-in user detected: ${userOnly} with Session ID: ${sessionId}. Retrieving SID for this user."
+            # Split the output by line and parse each line, skipping the header line
+            $userDetailsList = $quserOutput -split "`n" | Select-Object -Skip 1
 
-                # Get the user's SID using CIM
-                $userSID = (Get-CimInstance -Class Win32_UserAccount | Where-Object { $_.Name -eq $userOnly }).SID
-                if (-not $userSID) {
-                    Log -LogLevel WARNING "Could not retrieve the SID for the user: ${userOnly}."
-                    return $null
+            foreach ($userDetails in $userDetailsList) {
+                # Remove leading > if present and trim leading spaces
+                $userDetails = $userDetails -replace '^[>\s]+', ''
+                # Replace multiple spaces with a single space for easier splitting
+                $userDetails = $userDetails -replace '\s{2,}', ' '
+
+                $detailsArray = $userDetails -split ' '
+
+                if ($detailsArray.Count -ge 4) {
+                    # Extract the username and session ID from the quser output
+                    $userOnly = $detailsArray[0].Trim()
+                    $sessionId = [int]$detailsArray[2].Trim()
+                    Log -LogLevel INFO "Logged-in user detected: ${userOnly} with Session ID: ${sessionId}. Retrieving SID for this user."
+
+                    # Get the user's SID using CIM
+                    $userSID = (Get-CimInstance -Class Win32_UserAccount | Where-Object { $_.Name -eq $userOnly }).SID
+                    if (-not $userSID) {
+                        Log -LogLevel WARNING "Could not retrieve the SID for the user: ${userOnly}."
+                        return $null
+                    }
+                    Log -LogLevel INFO "Retrieved SID for user ${userOnly}: SID = ${userSID}"
+
+                    # Store the information globally
+                    $global:LoggedInUserInfo = [PSCustomObject]@{
+                        UserName  = $userOnly
+                        UserSID   = $userSID
+                        SessionId = $sessionId
+                    }
+
+                    return $global:LoggedInUserInfo
                 }
-                Log -LogLevel INFO "Retrieved SID for user ${userOnly}: SID = ${userSID}"
-
-                # Store the information globally
-                $global:LoggedInUserInfo = [PSCustomObject]@{
-                    UserName  = $userOnly
-                    UserSID   = $userSID
-                    SessionId = $sessionId
-                }
-
-                return $global:LoggedInUserInfo
-            } else {
-                Log -LogLevel ERROR "Failed to parse the quser output to retrieve user information."
-                return $null
             }
+
+            # If no valid user was found
+            Log -LogLevel WARNING "No logged-in user detected."
+            return $null
         } else {
             Log -LogLevel WARNING "No logged-in user detected."
             return $null
