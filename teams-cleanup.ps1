@@ -534,17 +534,28 @@ function Copy-LogToNetworkShare {
         $destinationFileName = "${hostname}_${global:FinalStatus}.log"
         $destinationPath = Join-Path -Path $networkSharePath -ChildPath $destinationFileName
 
+        # Credentials to authenticate to the network share
+        $username = "DOMAIN\YourUsername"  # Replace with the appropriate domain and username
+        $password = "YourPassword" | ConvertTo-SecureString -AsPlainText -Force  # Replace with the appropriate password
+        $credential = New-Object System.Management.Automation.PSCredential($username, $password)
+
+        # Map the network share using the credentials
+        New-PSDrive -Name Z -PSProvider FileSystem -Root $networkSharePath -Credential $credential -ErrorAction Stop
+
         # Check if the log file exists before attempting to copy
         if (Test-Path -Path $logFilePath) {
             Log -LogLevel INFO "Attempting to copy log file to network share: $destinationPath"
             
             # Attempt to copy the log file to the network share
-            Copy-Item -Path $logFilePath -Destination $destinationPath -Force -ErrorAction Stop
+            Copy-Item -Path $logFilePath -Destination "Z:\$destinationFileName" -Force -ErrorAction Stop
 
             Log -LogLevel INFO "Log file successfully copied to network share."
         } else {
             Log -LogLevel WARNING "Log file not found at path: $logFilePath. Skipping copy to network share."
         }
+
+        # Remove the mapped drive after copying
+        Remove-PSDrive -Name Z -ErrorAction Stop
     } catch {
         Log -LogLevel ERROR "Failed to copy log file to network share. Exception: $_"
     }
