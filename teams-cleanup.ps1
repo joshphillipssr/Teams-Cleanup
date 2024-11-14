@@ -69,7 +69,7 @@ function Check-Elevation {
         Log -LogLevel ERROR "This script requires elevation. Please run as administrator."
         Exit-Script 1
     }
-    Log -LogLevel WARNING "Script is running with elevated privileges."
+    Log -LogLevel INFO "Script is running with elevated privileges."
 }
 
 # Function to retrieve information about the currently logged-in user
