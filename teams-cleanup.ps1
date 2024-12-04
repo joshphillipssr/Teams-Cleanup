@@ -130,6 +130,31 @@ function Get-LoggedInUserInfo {
     }
 }
 
+# Function to capture system details
+function Capture-SystemDetails {
+    Log -LogLevel INFO "Capturing system details."
+
+    try {
+        # Retrieve machine name
+        $machineName = $env:COMPUTERNAME
+        Log -LogLevel INFO "Machine Name: $machineName"
+
+        # Retrieve operating system details
+        $os = Get-CimInstance -ClassName Win32_OperatingSystem
+        $osName = $os.Caption
+        Log -LogLevel INFO "Operating System: $osName"
+
+        # Retrieve IP address
+        $ipAddress = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Ethernet' -ErrorAction SilentlyContinue).IPAddress
+        if (-not $ipAddress) {
+            $ipAddress = (Get-NetIPAddress -AddressFamily IPv4 -InterfaceAlias 'Wi-Fi' -ErrorAction SilentlyContinue).IPAddress
+        }
+        Log -LogLevel INFO "IP Address: $ipAddress"
+    } catch {
+        Log -LogLevel ERROR "Failed to capture system details. Exception: $_"
+    }
+}
+
 # Function to send a notification to the logged-in user
 function User-Notification {
     param (
@@ -569,6 +594,9 @@ function Teams-Cleanup {
 
     # Retrieve the information of the currently logged-in user and store it for use in other functions
     Get-LoggedInUserInfo
+
+    # Capture system details
+    Capture-SystemDetails
 
     # Notify the user that Teams cleanup will begin
     User-Notification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes and will likely affect Microsoft Teams functionality for a few minutes while it runs. You will receive another message when the process is complete." -WaitBeforeStart $false
