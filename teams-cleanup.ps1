@@ -1,4 +1,4 @@
-# Script execution flags delcaration
+# Script execution flags declaration
 
 param (
     [Alias("i")]
@@ -6,14 +6,12 @@ param (
     [switch]$PreventExit    # Use -PreventExit switch to prevent script from exiting
 )
 
-
 # Script variables to manually set
 
 $script:LogFilePath = "C:\Logs\TeamsCleanup.log"
 $script:LogSharePath = "\\SERVER\Share"
 $script:LogShareUsername = "DOMAIN\Username"
 $script:LogSharePassword = "Password"
-
 
 # Script variables auto-set during execution
 
@@ -34,7 +32,6 @@ $script:TeamsUserProfileFilesStatus = $null
 $script:TeamsUserProfileStatus = $null
 $script:TeamsProvisionedPackageStatus = $null
 $script:TeamsUserRegisteredPackageStatus = $null
-
 
 # Function to write log messages to the console and a log file
 
@@ -79,7 +76,6 @@ function Write-Log {
     }
 }
 
-
 # Function to verify or create the log directory
 
 function Invoke-LogsDirectory {
@@ -99,7 +95,6 @@ function Invoke-LogsDirectory {
     }
 }
 
-
 # Set Interactive mode script variable based on script parameters
 
 if ($Interactive) {
@@ -110,11 +105,9 @@ if ($Interactive) {
     Write-Log -LogLevel INFO "Running in non-interactive mode."
 }
 
-
 # Set PreventExit script variable based on script parameters
 
 $script:PreventExit = $PreventExit.IsPresent
-
 
 # Function to test script elevation
 
@@ -127,7 +120,6 @@ function Test-ScriptElevation {
     }
     Write-Log -LogLevel INFO "Script is running with elevated privileges."
 }
-
 
 # Function to determine the execution context (User or System)
 
@@ -150,7 +142,6 @@ function Get-ExecutionContext {
         $script:RunContext = $null
     }
 }
-
 
 # Function to make a system change when in interactive mode
 
@@ -176,7 +167,6 @@ function Invoke-SystemChange {
     }
 }
 
-
 # Used by Invoke-SystemChange to confirm user action
 
 function Confirm-Action {
@@ -198,7 +188,8 @@ function Confirm-Action {
                 }
                 'S' {
                     $script:SkipAll = $true
-                    return $false }
+                    return $false
+                }
                 default { return $false }
             }
         } elseif ($script:ConfirmAll) {
@@ -236,7 +227,6 @@ function Exit-Script {
     }
 }
 
-
 # Function to capture system details
 
 function Get-SystemDetails {
@@ -262,7 +252,6 @@ function Get-SystemDetails {
         Write-Log -LogLevel ERROR "Failed to capture system details. Exception: $_"
     }
 }
-
 
 # Function to retrieve information about the currently logged-in user
 
@@ -321,7 +310,6 @@ function Get-LoggedInUserInfo {
     }
 }
 
-
 # Function to send a notification to the logged-in user if changes are required
 
 function Send-UserNotification {
@@ -331,7 +319,7 @@ function Send-UserNotification {
     )
     $truncatedMessage = if ($message.Length -gt 50) { 
         $message.Substring(0, 50) + "..." 
-        } else { 
+    } else { 
         $message 
     }
     Write-Log -LogLevel INFO "Sending user notification: $truncatedMessage"
@@ -361,7 +349,6 @@ function Send-UserNotification {
         Exit-Script 1  # Exit the script if there is an error notifying the user
     }
 }
-
 
 # Function to stop all running Microsoft Edge processes
 
@@ -396,7 +383,6 @@ function Stop-EdgeProcesses {
     }
 }
 
-
 # Check for WebView2 Evergreen version of WebView2 Runtime Executable
 
 function Get-WebView2EvergreenVersion {
@@ -424,7 +410,6 @@ function Get-WebView2EvergreenVersion {
         $script:WebView2EvergreenExeVersion = $null
     }
 }
-
 
 # Check for WebView2 Evergreen version of WebView2 Runtime in the registry
 
@@ -459,7 +444,6 @@ function Get-WebView2EvergreenRegistryKey {
     }
 }
 
-
 # Check if the WebView2 Evergreen exe and registry versions match
 
 function Test-WebView2EvergreenVersionMatch {
@@ -471,7 +455,6 @@ function Test-WebView2EvergreenVersionMatch {
         return $false
     }
 }
-
 
 # Function to install WebView2 Evergreen
 
@@ -495,7 +478,6 @@ function Install-WebView2Evergreen {
     }
 }
 
-
 function Get-WebView2Evergreen {
     Write-Log -LogLevel INFO "Checking for WebView2 Evergreen installation..."
 
@@ -515,7 +497,6 @@ function Get-WebView2Evergreen {
         Write-Log -LogLevel WARNING "WebView2 Evergreen installation is not valid."
     }
 }
-
 
 # Function to gather MSI-based WebView2 installations
 
@@ -564,7 +545,6 @@ function Get-WebView2MSI {
     }
 }
 
-
 # Function to remove MSI-based WebView2 installations
 
 function Remove-WebView2MSI {
@@ -587,7 +567,6 @@ function Remove-WebView2MSI {
         }
     }
 }
-
 
 # Function to detect the Machine-Wide version 1 of Teams
 
@@ -618,7 +597,6 @@ function Get-TeamsClassicWide {
         $script:TeamsClassicWideStatus = $false
     }
 }
-
 
 # Function to remove the Machine-Wide version 1 of Teams
 
@@ -663,7 +641,6 @@ function Remove-TeamsClassicWide {
     }
 }
 
-
 # Function to detect the Microsoft Teams Personal provisioned package
 
 function Get-TeamsPersonalProvisionedPackage {
@@ -686,7 +663,6 @@ function Get-TeamsPersonalProvisionedPackage {
         $script:TeamsPersonalProvisionedStatus = $false
     }
 }
-
 
 # Function to remove the Microsoft Teams Personal provisioned package
 
@@ -723,7 +699,6 @@ function Remove-TeamsPersonalProvisionedPackage {
     Write-Log -LogLevel INFO "Completed removal process for Microsoft Teams Personal provisioned package."
 }
 
-
 # Function to kill any running Microsoft Teams processes
 
 function Invoke-KillTeamsProcesses {
@@ -750,7 +725,6 @@ function Invoke-KillTeamsProcesses {
 
     Write-Log -LogLevel INFO "Completed search and termination of Teams processes."
 }
-
 
 # Function to detect Teams installations in the user context
 
@@ -788,7 +762,6 @@ function Get-TeamsForUser {
         $script:TeamsUserProfileStatus = $false
     }
 }
-
 
 # Function to remove Teams installations in the user context
 
@@ -833,7 +806,6 @@ function Remove-TeamsForUser {
     Write-Log -LogLevel INFO "Completed cleanup of Teams installations in the user context."
 }
 
-
 # Add the new detection function
 
 function Get-TeamsUserProfileFiles {
@@ -865,7 +837,6 @@ function Get-TeamsUserProfileFiles {
         $script:TeamsUserProfileFilesStatus = $false
     }
 }
-
 
 # Modify Remove-TeamsUserProfileFiles to only remove files
 
@@ -905,7 +876,6 @@ function Remove-TeamsUserProfileFiles {
 
     Write-Log -LogLevel INFO "Completed removal of leftover Teams files from the user profile."
 }
-
 
 # Function to get the current registry entry for the Teams protocol handler
 
@@ -947,7 +917,6 @@ function Get-TeamsProtocolHandler {
     }
 }
 
-
 # Function to update the registry for Microsoft Teams protocol handler
 
 function Update-TeamsProtocolHandler {
@@ -970,7 +939,6 @@ function Update-TeamsProtocolHandler {
 
     Write-Log -LogLevel INFO "Completed update of Microsoft Teams protocol handler registry entry."
 }
-
 
 function Invoke-InstallTeams {
     try {
@@ -1025,7 +993,6 @@ function Invoke-InstallTeams {
     }
 }
 
-
 # Register the Teams package for the current user
 
 function Register-TeamsPackageForUser {
@@ -1067,7 +1034,6 @@ function Register-TeamsPackageForUser {
     Write-Log -LogLevel INFO "Completed registration of Microsoft Teams package."
 }
 
-
 # Function to copy the log file to a network share
 
 function Copy-LogToNetworkShare {
@@ -1104,7 +1070,6 @@ function Copy-LogToNetworkShare {
     }
 }
 
-
 # Function to initialize the script
 
 function Invoke-InitializeScript {
@@ -1113,7 +1078,6 @@ function Invoke-InitializeScript {
     Get-ExecutionContext
     Get-SystemDetails
 }
-
 
 # Function to get the status of all components
 
