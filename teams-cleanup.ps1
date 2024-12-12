@@ -1,16 +1,22 @@
 # Script execution flags delcaration
+
 param (
-    [switch]$Interactive,   # Use -Interactive switch to run in interactive mode
+    [Alias("i")]
+    [switch]$Interactive,   # Use -Interactive or -i switch to run in interactive mode
     [switch]$PreventExit    # Use -PreventExit switch to prevent script from exiting
 )
 
+
 # Script variables to manually set
+
 $script:LogFilePath = "C:\Logs\TeamsCleanup.log"
 $script:LogSharePath = "\\SERVER\Share"
 $script:LogShareUsername = "DOMAIN\Username"
 $script:LogSharePassword = "Password"
 
+
 # Script variables auto-set during execution
+
 $script:FinalStatus = "INFO"
 $script:InteractiveMode = $false
 $script:ConfirmAll = $false
@@ -29,7 +35,9 @@ $script:TeamsUserProfileStatus = $null
 $script:TeamsProvisionedPackageStatus = $null
 $script:TeamsUserRegisteredPackageStatus = $null
 
+
 # Function to write log messages to the console and a log file
+
 function Write-Log {
     param (
         [string]$LogLevel = "INFO",
@@ -71,7 +79,9 @@ function Write-Log {
     }
 }
 
-# Check if log directory exists, if not create it
+
+# Function to verify or create the log directory
+
 function Invoke-LogsDirectory {
     try {
         # Extract the directory path from the script log file path
@@ -89,7 +99,9 @@ function Invoke-LogsDirectory {
     }
 }
 
+
 # Set Interactive mode script variable based on script parameters
+
 if ($Interactive) {
     $script:InteractiveMode = $true
     Write-Log -LogLevel INFO "Interactive mode enabled via command-line parameter."
@@ -98,11 +110,16 @@ if ($Interactive) {
     Write-Log -LogLevel INFO "Running in non-interactive mode."
 }
 
+
 # Set PreventExit script variable based on script parameters
+
 $script:PreventExit = $PreventExit.IsPresent
 
-# Function to check for elevated privileges
+
+# Function to test script elevation
+
 function Test-ScriptElevation {
+    # Checking if the script has elevated privileges...
     Write-Log -LogLevel INFO "Checking if the script has elevated privileges..."
     if (!([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole] "Administrator")) {
         Write-Log -LogLevel ERROR "This script requires elevation. Please run as administrator."
@@ -111,7 +128,9 @@ function Test-ScriptElevation {
     Write-Log -LogLevel INFO "Script is running with elevated privileges."
 }
 
+
 # Function to determine the execution context (User or System)
+
 function Get-ExecutionContext {
     try {
         # Get the current user identity
@@ -132,7 +151,9 @@ function Get-ExecutionContext {
     }
 }
 
+
 # Function to make a system change when in interactive mode
+
 function Invoke-SystemChange {
     param (
         [Parameter(Mandatory)]
@@ -155,7 +176,9 @@ function Invoke-SystemChange {
     }
 }
 
+
 # Used by Invoke-SystemChange to confirm user action
+
 function Confirm-Action {
     param (
         [string]$Message = "Do you want to proceed?"
@@ -190,6 +213,7 @@ function Confirm-Action {
 }
 
 # Script termination function
+
 function Exit-Script {
     param (
         [int]$ExitCode
@@ -212,7 +236,9 @@ function Exit-Script {
     }
 }
 
+
 # Function to capture system details
+
 function Get-SystemDetails {
     Write-Log -LogLevel INFO "Capturing system details."
 
@@ -237,7 +263,9 @@ function Get-SystemDetails {
     }
 }
 
+
 # Function to retrieve information about the currently logged-in user
+
 function Get-LoggedInUserInfo {
     try {
         Write-Log -LogLevel INFO "Retrieving information about the current logged-in user."
@@ -293,7 +321,9 @@ function Get-LoggedInUserInfo {
     }
 }
 
+
 # Function to send a notification to the logged-in user if changes are required
+
 function Send-UserNotification {
     param (
         [string]$message,
@@ -332,7 +362,9 @@ function Send-UserNotification {
     }
 }
 
+
 # Function to stop all running Microsoft Edge processes
+
 function Stop-EdgeProcesses {
     Write-Log -LogLevel INFO "Checking for running Microsoft Edge processes..."
     try {
@@ -364,7 +396,9 @@ function Stop-EdgeProcesses {
     }
 }
 
+
 # Check for WebView2 Evergreen version of WebView2 Runtime Executable
+
 function Get-WebView2EvergreenVersion {
     $baseRuntimePath = 'C:\Program Files (x86)\Microsoft\EdgeWebView\Application'
     Write-Log -LogLevel INFO "Searching System Context Path for WebView2 Evergreen..."
@@ -391,7 +425,9 @@ function Get-WebView2EvergreenVersion {
     }
 }
 
+
 # Check for WebView2 Evergreen version of WebView2 Runtime in the registry
+
 function Get-WebView2EvergreenRegistryKey {
     Write-Log -LogLevel INFO "Searching registry for WebView2 Evergreen..."
 
@@ -423,6 +459,9 @@ function Get-WebView2EvergreenRegistryKey {
     }
 }
 
+
+# Check if the WebView2 Evergreen exe and registry versions match
+
 function Test-WebView2EvergreenVersionMatch {
     if ($script:WebView2EvergreenExeVersion -eq $script:WebView2EvergreenRegVersion) {
         Write-Log -LogLevel INFO "WebView2 Evergreen exe and registry exist and versions match. Installation is valid."
@@ -432,6 +471,9 @@ function Test-WebView2EvergreenVersionMatch {
         return $false
     }
 }
+
+
+# Function to install WebView2 Evergreen
 
 function Install-WebView2Evergreen {
     try {
@@ -453,6 +495,7 @@ function Install-WebView2Evergreen {
     }
 }
 
+
 function Get-WebView2Evergreen {
     Write-Log -LogLevel INFO "Checking for WebView2 Evergreen installation..."
 
@@ -473,7 +516,9 @@ function Get-WebView2Evergreen {
     }
 }
 
+
 # Function to gather MSI-based WebView2 installations
+
 function Get-WebView2MSI {
     # Log the start of the check for older MSI-based WebView2 installations
     Write-Log -LogLevel INFO "Checking for older MSI-based installations of WebView2 Runtime..."
@@ -519,7 +564,9 @@ function Get-WebView2MSI {
     }
 }
 
+
 # Function to remove MSI-based WebView2 installations
+
 function Remove-WebView2MSI {
     param (
         [string[]]$ProductCodes
@@ -541,7 +588,9 @@ function Remove-WebView2MSI {
     }
 }
 
+
 # Function to detect the Machine-Wide version 1 of Teams
+
 function Get-TeamsClassicWide {
     Write-Log -LogLevel INFO "Checking for Teams Machine-Wide Installer in the registry..."
 
@@ -570,7 +619,9 @@ function Get-TeamsClassicWide {
     }
 }
 
+
 # Function to remove the Machine-Wide version 1 of Teams
+
 function Remove-TeamsClassicWide {
     try {
         # Uninstall machine-wide versions of Teams
@@ -612,7 +663,9 @@ function Remove-TeamsClassicWide {
     }
 }
 
+
 # Function to detect the Microsoft Teams Personal provisioned package
+
 function Get-TeamsPersonalProvisionedPackage {
     Write-Log -LogLevel INFO "Checking for Microsoft Teams Personal provisioned package..."
 
@@ -634,7 +687,9 @@ function Get-TeamsPersonalProvisionedPackage {
     }
 }
 
+
 # Function to remove the Microsoft Teams Personal provisioned package
+
 function Remove-TeamsPersonalProvisionedPackage {
     Write-Log -LogLevel INFO "Starting removal of Microsoft Teams Personal provisioned package..."
 
@@ -668,7 +723,9 @@ function Remove-TeamsPersonalProvisionedPackage {
     Write-Log -LogLevel INFO "Completed removal process for Microsoft Teams Personal provisioned package."
 }
 
+
 # Function to kill any running Microsoft Teams processes
+
 function Invoke-KillTeamsProcesses {
     Write-Log -LogLevel INFO "Starting to search for and terminate any running Microsoft Teams processes."
 
@@ -694,7 +751,9 @@ function Invoke-KillTeamsProcesses {
     Write-Log -LogLevel INFO "Completed search and termination of Teams processes."
 }
 
+
 # Function to detect Teams installations in the user context
+
 function Get-TeamsForUser {
     Write-Log -LogLevel INFO "Checking Teams installations in the user context."
 
@@ -730,7 +789,9 @@ function Get-TeamsForUser {
     }
 }
 
+
 # Function to remove Teams installations in the user context
+
 function Remove-TeamsForUser {
     Write-Log -LogLevel INFO "Starting cleanup of Teams installations in the user context."
 
@@ -772,7 +833,9 @@ function Remove-TeamsForUser {
     Write-Log -LogLevel INFO "Completed cleanup of Teams installations in the user context."
 }
 
+
 # Add the new detection function
+
 function Get-TeamsUserProfileFiles {
     Write-Log -LogLevel INFO "Checking for leftover Teams files in the user profile."
 
@@ -803,7 +866,9 @@ function Get-TeamsUserProfileFiles {
     }
 }
 
+
 # Modify Remove-TeamsUserProfileFiles to only remove files
+
 function Remove-TeamsUserProfileFiles {
     Write-Log -LogLevel INFO "Starting removal of leftover Teams files from the user profile."
 
@@ -841,7 +906,9 @@ function Remove-TeamsUserProfileFiles {
     Write-Log -LogLevel INFO "Completed removal of leftover Teams files from the user profile."
 }
 
+
 # Function to get the current registry entry for the Teams protocol handler
+
 function Get-TeamsProtocolHandler {
     Write-Log -LogLevel INFO "Checking the registry entry for the Microsoft Teams protocol handler."
 
@@ -880,7 +947,9 @@ function Get-TeamsProtocolHandler {
     }
 }
 
+
 # Function to update the registry for Microsoft Teams protocol handler
+
 function Update-TeamsProtocolHandler {
     Write-Log -LogLevel INFO "Starting update of Microsoft Teams protocol handler registry entry."
 
@@ -901,6 +970,7 @@ function Update-TeamsProtocolHandler {
 
     Write-Log -LogLevel INFO "Completed update of Microsoft Teams protocol handler registry entry."
 }
+
 
 function Invoke-InstallTeams {
     try {
@@ -955,7 +1025,9 @@ function Invoke-InstallTeams {
     }
 }
 
+
 # Register the Teams package for the current user
+
 function Register-TeamsPackageForUser {
     Write-Log -LogLevel INFO "Starting registration of Microsoft Teams package for the current logged-in user."
 
@@ -995,7 +1067,9 @@ function Register-TeamsPackageForUser {
     Write-Log -LogLevel INFO "Completed registration of Microsoft Teams package."
 }
 
+
 # Function to copy the log file to a network share
+
 function Copy-LogToNetworkShare {
     try {
         # Ensure the log file exists
@@ -1030,7 +1104,9 @@ function Copy-LogToNetworkShare {
     }
 }
 
+
 # Function to initialize the script
+
 function Invoke-InitializeScript {
     Invoke-LogsDirectory
     Test-ScriptElevation
@@ -1038,7 +1114,9 @@ function Invoke-InitializeScript {
     Get-SystemDetails
 }
 
+
 # Function to get the status of all components
+
 function Get-StatusAll {
     Get-LoggedInUserInfo
     Get-WebView2MSI
@@ -1048,6 +1126,7 @@ function Get-StatusAll {
     Get-TeamsForUser
     Get-TeamsProtocolHandler
 }
+
 function Invoke-SystemChange {
 
     # Notify the user that Teams cleanup will begin
