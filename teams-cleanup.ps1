@@ -940,53 +940,98 @@ function Update-TeamsProtocolHandler {
     Write-Log -LogLevel INFO "Completed update of Microsoft Teams protocol handler registry entry."
 }
 
+function Get-TeamsInstall {
+    param (
+        [string]$AppxPackageName = "MSTeams"
+    )
+    Write-Log -LogLevel INFO "Checking if Microsoft Teams 2.0 ($AppxPackageName) is already provisioned."
+    $teamsProvisionedPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $AppxPackageName }
+    if ($teamsProvisionedPackage) {
+        Write-Log -LogLevel INFO "Microsoft Teams 2.0 is already provisioned. Version: $($teamsProvisionedPackage.Version)"
+        $script:TeamsProvisionedPackageStatus = $teamsProvisionedPackage
+    } else {
+        Write-Log -LogLevel INFO "Microsoft Teams 2.0 is not provisioned."
+        $script:TeamsProvisionedPackageStatus = $false
+    }
+}
+
 function Invoke-InstallTeams {
     try {
         Write-Log -LogLevel INFO "Installing the latest version of Microsoft Teams (Teams 2.0) from the MSIX package."
-
-        # Define the correct Teams Appx package name for Microsoft Teams 2.0
-        $teamsAppxPackageName = "MSTeams"
-
-        # Check if Teams 2.0 is already provisioned
-        $teamsProvisionedPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
-        if ($teamsProvisionedPackage) {
-            Write-Log -LogLevel INFO "Microsoft Teams 2.0 is already provisioned on the system. Version: $($teamsProvisionedPackage.Version)"
-            return $true
+        Get-TeamsInstall
+        if ($script:TeamsProvisionedPackageStatus -ne $false) {
+            Write-Log -LogLevel INFO "Teams 2.0 is already provisioned. Skipping installation."
+            return
         }
 
-        # If not provisioned, attempt to download and install the MSIX package
-        Write-Log -LogLevel INFO "Microsoft Teams 2.0 is not provisioned. Downloading and installing from the MSIX package..."
+        if ($script:InteractiveMode) {
+            $action = {
+                Write-Log -LogLevel INFO "Microsoft Teams 2.0 is not provisioned. Downloading and installing from the MSIX package..."
 
-        # Define the download URL and local path for the MSIX package
-        $msixPackageUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
-        $msixPackagePath = Join-Path $env:TEMP "MSTeams-x64.msix"
+                # Define the download URL and local path for the MSIX package
+                $msixPackageUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
+                $msixPackagePath = Join-Path $env:TEMP "MSTeams-x64.msix"
 
-        # Download the MSIX package
-        Write-Log -LogLevel INFO "Downloading MSIX package from $msixPackageUrl..."
-        $webClient = New-Object System.Net.WebClient
-        $webClient.DownloadFile($msixPackageUrl, $msixPackagePath)
-        $webClient.Dispose()
-        Write-Log -LogLevel INFO "Download completed: $msixPackagePath."
+                # Download the MSIX package
+                Write-Log -LogLevel INFO "Downloading MSIX package from $msixPackageUrl..."
+                $webClient = New-Object System.Net.WebClient
+                $webClient.DownloadFile($msixPackageUrl, $msixPackagePath)
+                $webClient.Dispose()
+                Write-Log -LogLevel INFO "Download completed: $msixPackagePath."
 
-        # Install Teams 2.0 using Add-AppProvisionedPackage
-        Write-Log -LogLevel INFO "Installing Microsoft Teams 2.0 from the MSIX package..."
-        Add-AppxProvisionedPackage -Online -PackagePath $msixPackagePath -SkipLicense
-        Write-Log -LogLevel INFO "Microsoft Teams 2.0 installation initiated from the MSIX package."
+                # Install Teams 2.0 using Add-AppProvisionedPackage
+                Write-Log -LogLevel INFO "Installing Microsoft Teams 2.0 from the MSIX package..."
+                Add-AppxProvisionedPackage -Online -PackagePath $msixPackagePath -SkipLicense
+                Write-Log -LogLevel INFO "Microsoft Teams 2.0 installation initiated from the MSIX package."
 
-        # Wait for a few seconds to allow the system to register the installation
-        Start-Sleep -Seconds 5
+                # Wait for a few seconds to allow the system to register the installation
+                Start-Sleep -Seconds 5
 
-        # Verify the installation using Get-AppProvisionedPackage
-        $teamsProvisionedPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq $teamsAppxPackageName }
+                # Verify the installation using Get-AppProvisionedPackage
+                $teamsProvisionedPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq "MSTeams" }
 
-        if ($teamsProvisionedPackage) {
-            Write-Log -LogLevel INFO "Microsoft Teams 2.0 provisioned successfully. Version: $($teamsProvisionedPackage.Version)"
-            return $true
+                if ($teamsProvisionedPackage) {
+                    Write-Log -LogLevel INFO "Microsoft Teams 2.0 provisioned successfully. Version: $($teamsProvisionedPackage.Version)"
+                    return $true
+                } else {
+                    Write-Log -LogLevel ERROR "Failed to verify the provisioning of Microsoft Teams 2.0."
+                    return $false
+                }
+            }
+            Invoke-SystemChange -Action $action -Message "Do you want to install Microsoft Teams 2.0?"
         } else {
-            Write-Log -LogLevel ERROR "Failed to verify the provisioning of Microsoft Teams 2.0."
-            return $false
-        }
+            Write-Log -LogLevel INFO "Microsoft Teams 2.0 is not provisioned. Downloading and installing from the MSIX package..."
 
+            # Define the download URL and local path for the MSIX package
+            $msixPackageUrl = "https://go.microsoft.com/fwlink/?linkid=2196106"
+            $msixPackagePath = Join-Path $env:TEMP "MSTeams-x64.msix"
+
+            # Download the MSIX package
+            Write-Log -LogLevel INFO "Downloading MSIX package from $msixPackageUrl..."
+            $webClient = New-Object System.Net.WebClient
+            $webClient.DownloadFile($msixPackageUrl, $msixPackagePath)
+            $webClient.Dispose()
+            Write-Log -LogLevel INFO "Download completed: $msixPackagePath."
+
+            # Install Teams 2.0 using Add-AppProvisionedPackage
+            Write-Log -LogLevel INFO "Installing Microsoft Teams 2.0 from the MSIX package..."
+            Add-AppxProvisionedPackage -Online -PackagePath $msixPackagePath -SkipLicense
+            Write-Log -LogLevel INFO "Microsoft Teams 2.0 installation initiated from the MSIX package."
+
+            # Wait for a few seconds to allow the system to register the installation
+            Start-Sleep -Seconds 5
+
+            # Verify the installation using Get-AppProvisionedPackage
+            $teamsProvisionedPackage = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -eq "MSTeams" }
+
+            if ($teamsProvisionedPackage) {
+                Write-Log -LogLevel INFO "Microsoft Teams 2.0 provisioned successfully. Version: $($teamsProvisionedPackage.Version)"
+                return $true
+            } else {
+                Write-Log -LogLevel ERROR "Failed to verify the provisioning of Microsoft Teams 2.0."
+                return $false
+            }
+        }
     } catch {
         Write-Log -LogLevel ERROR "Failed to install Microsoft Teams. Exception: $_"
         return $false
@@ -1079,7 +1124,7 @@ function Invoke-InitializeScript {
     Get-SystemDetails
 }
 
-# Function to get the status of all components
+# Function to get the status of all components and update script variables
 
 function Get-StatusAll {
     Get-LoggedInUserInfo
@@ -1088,51 +1133,60 @@ function Get-StatusAll {
     Get-TeamsClassicWide
     Get-TeamsPersonalProvisionedPackage
     Get-TeamsForUser
+    Get-TeamsInstall
     Get-TeamsProtocolHandler
 }
 
-function Invoke-SystemChange {
+function Invoke-ScriptStatusAndPrompt {
+    Write-Log -LogLevel INFO "Checking the status of script variables to determine if changes need to be made."
 
-    # Notify the user that Teams cleanup will begin
-    Send-UserNotification -Title "Teams Cleanup" -Message "IT is performing a cleanup of Microsoft Teams on this system. The process will begin in 5 minutes and will likely affect Microsoft Teams functionality for a few minutes while it runs. You will receive another message when the process is complete." -WaitBeforeStart $false
+    # Determine if any changes are needed
+    $changesNeeded = $false
 
-    # Check and install Microsoft Edge WebView2 if required
-    Test-WebView2Installation
+    if ($script:WebView2EvergreenStatus -eq $false) {
+        Write-Log -LogLevel INFO "WebView2 Evergreen installation is not valid."
+        $changesNeeded = $true
+    }
+    if ($script:TeamsClassicWideStatus -ne $false) {
+        Write-Log -LogLevel INFO "Teams Machine-Wide Installer is present."
+        $changesNeeded = $true
+    }
+    if ($script:TeamsPersonalProvisionedStatus -ne $false) {
+        Write-Log -LogLevel INFO "Teams Personal provisioned package is present."
+        $changesNeeded = $true
+    }
+    if ($script:TeamsUserProfileStatus -ne $false) {
+        Write-Log -LogLevel INFO "Teams installations found in user profile."
+        $changesNeeded = $true
+    }
+    if ($script:TeamsUserProfileFilesStatus -eq $true) {
+        Write-Log -LogLevel INFO "Leftover Teams files found in user profile."
+        $changesNeeded = $true
+    }
+    if ($script:TeamsRegistryEntry -ne '"msteams.exe" "%1"') {
+        Write-Log -LogLevel INFO "Teams protocol handler registry entry is not set correctly."
+        $changesNeeded = $true
+    }
 
-    # Uninstall existing machine-wide Teams installation
-    Remove-TeamsClassicWide
-
-    # Uninstall Teams Personal Provisioned Package
-    Remove-TeamsPersonalProvisionedPackage
-
-    # Check for Teams files in user profile
-    Get-TeamsUserProfileFiles
-
-    # Clean up Teams installations for the current user
-    Remove-TeamsForUser
-
-    # Manually remove leftover Teams files from the user profile
-    Remove-TeamsUserProfileFiles
-
-    # Install Teams after the cleanup
-    Invoke-InstallTeams
-    
-    # Register the Teams package for the current user
-    Register-TeamsPackageForUser
-
-    # Check and update the registry for the Microsoft Teams protocol handler
-    Get-TeamsProtocolHandler
-    Update-TeamsProtocolHandler
-
-    # Notify the user that Teams cleanup has completed
-    Send-UserNotification -Title "Teams Cleanup Complete" -Message "Microsoft Teams cleanup has completed and is now ready to use. If prompted select your <firstname.lastname@goodyearaz.gov> email account. `n`n Contact the Helpdesk at (623) 822-7850 if you have problems." -WaitBeforeStart $false
-
-    Copy-LogToNetworkShare
-
+    if ($changesNeeded) {
+        if ($script:InteractiveMode) {
+            $proceed = Confirm-Action -Message "Changes are needed to clean up Teams. Do you want to proceed?"
+            if ($proceed) {
+                Invoke-SystemChange
+            } else {
+                Write-Log -LogLevel INFO "User chose not to proceed with changes. Exiting script."
+                Exit-Script 0
+            }
+        } else {
+            Write-Log -LogLevel INFO "Non-interactive mode: Proceeding with changes."
+            Invoke-SystemChange
+        }
+    } else {
+        Write-Log -LogLevel INFO "No changes needed. Exiting script."
+        Exit-Script 0
+    }
 }
 
 Invoke-InitializeScript
 Get-StatusAll
-
-# Run the script to uninstall previous versions and install the latest Teams
-Invoke-SystemChange
+Invoke-ScriptStatusAndPrompt
